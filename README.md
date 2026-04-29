@@ -33,6 +33,30 @@ Upload → Extract → Normalize → Validate → Store → Review → Update/De
 
 ---
 
+### ⚙️ Extraction Strategy
+
+Currently, the system uses **Google Gemini** for all document extraction (PDFs, images, CSV, and TXT).
+
+This ensures consistent structured output across different file types, especially for unstructured inputs like scanned invoices.
+
+Planned improvement:
+
+- Introduce **deterministic parsers for structured formats**:
+  - CSV → parsed using libraries like `csv-parse`
+  - TXT → simple key-value and regex-based extraction
+
+This will:
+
+- reduce reliance on AI for structured data
+- improve reliability and performance
+- make validation more predictable
+
+AI extraction will remain the primary approach for:
+
+- PDFs
+- images
+- unstructured or inconsistent documents
+
 ### ✅ Validation Engine (Deterministic)
 
 Custom rule-based validation:
