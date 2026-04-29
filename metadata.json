@@ -1,0 +1,11 @@
+{
+  "name": "InvoiceParser: Smart Document Processing",
+  "description": "An intelligent system for extracting, validating, and managing business documents like invoices and purchase orders using AI-powered OCR and structured data extraction.",
+  "requestFramePermissions": ["camera"],
+  "majorCapabilities": [
+    "AI-powered Document Extraction",
+    "Automated Validation Engine",
+    "Real-time Review Interface with Editing capabilities",
+    "Data Persistence with MongoDB"
+  ]
+}
