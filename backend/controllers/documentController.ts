@@ -3,6 +3,7 @@ import { DocumentProcessor } from "../services/documentProcessor";
 import fs from "fs";
 import { Document } from "../models/Document";
 import { DocumentValidator } from "../services/validators/documentValidator";
+import { DuplicateValidator } from "../services/validators/duplicateValidator";
 
 export class DocumentController {
   // upload route in documentRoutes.ts calls this function when a file is uploaded. It processes the file and returns the result.
@@ -86,8 +87,13 @@ export class DocumentController {
       delete (dataForValidation as any).status;
 
       // 3. Re-run validation
-      const validationIssues = DocumentValidator.validate(dataForValidation);
-
+      const validationIssues = [
+        ...DocumentValidator.validate(dataForValidation),
+        ...(await DuplicateValidator.validateDocumentNumber(
+          dataForValidation.documentNumber,
+          id,
+        )),
+      ];
       const hasErrors = validationIssues.some((i) => i.severity === "error");
 
       // 4. Decide final status

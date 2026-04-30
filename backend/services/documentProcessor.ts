@@ -9,6 +9,7 @@ import { GeminiParser } from "./parsers/geminiParser";
 import { DocumentValidator } from "./validators/documentValidator";
 import { Document } from "../models/Document";
 import { normalizeExtractedData } from "./normalizers/documentNormalizer";
+import { DuplicateValidator } from "./validators/duplicateValidator";
 
 export class DocumentProcessor {
   static async process(
@@ -24,21 +25,17 @@ export class DocumentProcessor {
     );
     const extractedData = normalizeExtractedData(rawExtractedData);
     // 2. Validation
-    const validationIssues = DocumentValidator.validate(extractedData);
+    const validationIssues = [
+      ...DocumentValidator.validate(extractedData),
+      ...(await DuplicateValidator.validateDocumentNumber(
+        extractedData.documentNumber,
+      )),
+    ];
 
     // 3. Status logic
     const status = validationIssues.some((i) => i.severity === "error")
       ? "needs_review"
       : "uploaded";
-
-    const processedDoc: ProcessedDocument = {
-      ...extractedData,
-      id: Math.random().toString(36).substr(2, 9),
-      status,
-      validationIssues,
-      createdAt: new Date().toISOString(),
-      fileName,
-    };
 
     const savedDocument = (await Document.create({
       fileName,
