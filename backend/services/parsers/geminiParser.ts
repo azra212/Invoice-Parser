@@ -1,3 +1,4 @@
+import { AppError } from "../../errors/AppError";
 import { GoogleGenAI, Type } from "@google/genai";
 import { ExtractedData } from "../../models/documentTypes";
 
@@ -8,8 +9,10 @@ function getAI() {
     const apiKey = process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
-      throw new Error(
-        "GEMINI_API_KEY is missing or invalid in your .env file.",
+      throw new AppError(
+        "AI extraction is not configured. Please add a valid Gemini API key.",
+        503,
+        "AI_NOT_CONFIGURED",
       );
     }
 
@@ -139,54 +142,100 @@ Expected JSON shape:
 }`,
     });
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            documentType: nullableDocumentType,
-            supplierName: nullableString,
-            documentNumber: nullableString,
-            issueDate: nullableString,
-            dueDate: nullableString,
-            currency: nullableString,
-            lineItems: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  description: nullableString,
-                  quantity: nullableNumber,
-                  unitPrice: nullableNumber,
-                  amount: nullableNumber,
-                },
-                required: ["description", "quantity", "unitPrice", "amount"],
-              },
-            },
-            subtotal: nullableNumber,
-            tax: nullableNumber,
-            total: nullableNumber,
-          },
-          required: [
-            "documentType",
-            "supplierName",
-            "documentNumber",
-            "issueDate",
-            "dueDate",
-            "currency",
-            "lineItems",
-            "subtotal",
-            "tax",
-            "total",
-          ],
-        },
-      },
-    });
+    let response;
 
-    const result = JSON.parse(response.text || "{}");
+    try {
+      response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              documentType: nullableDocumentType,
+              supplierName: nullableString,
+              documentNumber: nullableString,
+              issueDate: nullableString,
+              dueDate: nullableString,
+              currency: nullableString,
+              lineItems: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    description: nullableString,
+                    quantity: nullableNumber,
+                    unitPrice: nullableNumber,
+                    amount: nullableNumber,
+                  },
+                  required: ["description", "quantity", "unitPrice", "amount"],
+                },
+              },
+              subtotal: nullableNumber,
+              tax: nullableNumber,
+              total: nullableNumber,
+            },
+            required: [
+              "documentType",
+              "supplierName",
+              "documentNumber",
+              "issueDate",
+              "dueDate",
+              "currency",
+              "lineItems",
+              "subtotal",
+              "tax",
+              "total",
+            ],
+          },
+        },
+      });
+    } catch (err: any) {
+      const message = String(err?.message ?? "");
+
+      if (
+        err?.status === 429 ||
+        message.includes("RESOURCE_EXHAUSTED") ||
+        message.includes("prepayment credits are depleted")
+      ) {
+        throw new AppError(
+          "AI extraction is currently unavailable because Gemini credits are depleted. CSV and TXT files can still be processed without AI.",
+          503,
+          "AI_CREDITS_DEPLETED",
+        );
+      }
+
+      if (
+        message.includes("GEMINI_API_KEY") ||
+        message.includes("API key") ||
+        message.includes("API_KEY")
+      ) {
+        throw new AppError(
+          "AI extraction is not configured correctly. Please check the Gemini API key.",
+          503,
+          "AI_NOT_CONFIGURED",
+        );
+      }
+
+      throw new AppError(
+        "AI extraction failed. Please try again or upload a CSV/TXT file that can be processed without AI.",
+        502,
+        "AI_EXTRACTION_FAILED",
+      );
+    }
+
+    let result: any;
+
+    try {
+      result = JSON.parse(response.text || "{}");
+    } catch {
+      throw new AppError(
+        "AI extraction returned an invalid response. Please try again.",
+        502,
+        "AI_INVALID_RESPONSE",
+      );
+    }
 
     return {
       documentType: result.documentType ?? null,

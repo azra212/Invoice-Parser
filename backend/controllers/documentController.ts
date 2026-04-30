@@ -8,28 +8,45 @@ import { DuplicateValidator } from "../services/validators/duplicateValidator";
 export class DocumentController {
   // upload route in documentRoutes.ts calls this function when a file is uploaded. It processes the file and returns the result.
   static async uploadDocument(req: Request, res: Response) {
+    let uploadedFilePath: string | undefined;
+
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+        return res.status(400).json({
+          success: false,
+          code: "NO_FILE_UPLOADED",
+          message: "Please choose a file to upload.",
+        });
       }
 
+      uploadedFilePath = req.file.path;
+
       const fileBuffer = fs.readFileSync(req.file.path);
+
       const processedDoc = await DocumentProcessor.process(
         fileBuffer,
         req.file.mimetype,
         req.file.originalname,
       );
 
-      // Cleanup temp file
-      fs.unlinkSync(req.file.path);
-
-      res.status(201).json({
+      return res.status(201).json({
         success: true,
         data: processedDoc,
       });
     } catch (error: any) {
       console.error("Upload/Process Error:", error);
-      res.status(500).json({ error: error.message });
+
+      return res.status(error.statusCode || 500).json({
+        success: false,
+        code: error.code || "DOCUMENT_PROCESSING_FAILED",
+        message:
+          error.message ||
+          "Document processing failed. Please try again with another file.",
+      });
+    } finally {
+      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+        fs.unlinkSync(uploadedFilePath);
+      }
     }
   }
 
