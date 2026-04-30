@@ -11,17 +11,15 @@ import {
   Button,
   Badge,
   Table,
-  useDisclosure,
-  createListCollection,
 } from "@chakra-ui/react";
 import {
-  FileUp,
   ClipboardList,
   AlertCircle,
   CheckCircle2,
   History,
 } from "lucide-react";
 import { ProcessedDocument } from "../backend/models/documentTypes";
+import { DocumentReviewModal } from "./components/DocumentReviewModal";
 
 // Component placeholders for now
 const Navbar = ({ onUploadClick }: { onUploadClick: () => void }) => (
@@ -134,6 +132,39 @@ export default function App() {
   const [uploading, setUploading] = useState(false);
   const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
 
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Helpers
+
+  const displayValue = (value: unknown) => {
+    if (value === null || value === undefined || value === "") return "—";
+    return String(value);
+  };
+
+  const displayMoney = (value: number | null | undefined) => {
+    if (value === null || value === undefined) return "—";
+    return value.toLocaleString();
+  };
+
+  const formatDateTime = (value: string | null | undefined) => {
+    if (!value) return "—";
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) return "—";
+
+    return date.toLocaleString();
+  };
+
+  const formatStatus = (status: string | null | undefined) => {
+    if (!status) return "—";
+    return status.replace("_", " ");
+  };
+
+  const issueCount = (doc: any) => {
+    return doc.validationIssues?.length ?? 0;
+  };
+
   const fetchDocs = async () => {
     const res = await fetch("/api/documents");
     const data = await res.json();
@@ -150,7 +181,9 @@ export default function App() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setUploadError(null);
     setUploading(true);
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -159,16 +192,30 @@ export default function App() {
         method: "POST",
         body: formData,
       });
+
       const data = await res.json();
-      if (res.ok) {
-        const uploadedDoc = data.success ? data.data : data;
-        setDocuments((prev) => [uploadedDoc, ...prev]);
-        setSelectedDoc(uploadedDoc);
+
+      if (!res.ok || !data.success) {
+        setUploadError(
+          data.message ||
+            data.error?.message ||
+            data.error ||
+            "Document upload failed. Please try again with another file.",
+        );
+        return;
       }
+
+      const uploadedDoc = data.data;
+      setDocuments((prev) => [uploadedDoc, ...prev]);
+      setSelectedDoc(uploadedDoc);
     } catch (err) {
       console.error(err);
+      setUploadError(
+        "Could not upload the document. Please check your connection and try again.",
+      );
     } finally {
       setUploading(false);
+      e.target.value = "";
     }
   };
 
@@ -258,9 +305,29 @@ export default function App() {
                 )}
               </HStack>
             </Box>
-
+            {uploadError && (
+              <Box
+                w="full"
+                p={4}
+                bg="red.50"
+                border="1px solid"
+                borderColor="red.100"
+                borderRadius="md"
+              >
+                <HStack align="start" gap={3}>
+                  <AlertCircle size={18} color="red" />
+                  <Box>
+                    <Text fontWeight="bold" fontSize="sm" color="red.700">
+                      Upload failed
+                    </Text>
+                    <Text fontSize="sm" color="red.700">
+                      {uploadError}
+                    </Text>
+                  </Box>
+                </HStack>
+              </Box>
+            )}{" "}
             <Stats docs={documents} />
-
             <Box
               w="full"
               bg="white"
@@ -311,10 +378,20 @@ export default function App() {
                   <Table.Root size="sm" variant="line">
                     <Table.Header>
                       <Table.Row>
-                        <Table.ColumnHeader>Document</Table.ColumnHeader>
+                        <Table.ColumnHeader>Document Number</Table.ColumnHeader>
                         <Table.ColumnHeader>Supplier</Table.ColumnHeader>
-                        <Table.ColumnHeader>Date</Table.ColumnHeader>
-                        <Table.ColumnHeader>Amount</Table.ColumnHeader>
+                        <Table.ColumnHeader>Issue Date</Table.ColumnHeader>
+                        <Table.ColumnHeader>Due Date</Table.ColumnHeader>
+                        <Table.ColumnHeader textAlign="right">
+                          Subtotal
+                        </Table.ColumnHeader>
+                        <Table.ColumnHeader textAlign="right">
+                          Tax
+                        </Table.ColumnHeader>
+                        <Table.ColumnHeader textAlign="right">
+                          Total
+                        </Table.ColumnHeader>
+                        <Table.ColumnHeader>Currency</Table.ColumnHeader>
                         <Table.ColumnHeader>Status</Table.ColumnHeader>
                         <Table.ColumnHeader textAlign="right">
                           Actions
@@ -327,36 +404,69 @@ export default function App() {
                           <Table.Cell>
                             <VStack align="start" gap={0}>
                               <Text fontWeight="medium" fontSize="sm">
-                                {doc.documentNumber || "UNNAMED"}
+                                {displayValue(doc.documentNumber)}
                               </Text>
                               <Text fontSize="xs" color="gray.500">
-                                {doc.fileName}
+                                {displayValue(doc.fileName)}
                               </Text>
                             </VStack>
                           </Table.Cell>
+
                           <Table.Cell fontSize="sm">
-                            {doc.supplierName}
+                            {displayValue(doc.supplierName)}
                           </Table.Cell>
-                          <Table.Cell fontSize="sm">{doc.issueDate}</Table.Cell>
-                          <Table.Cell fontSize="sm" fontWeight="bold">
-                            {doc.currency || ""}{" "}
-                            {doc.total?.toLocaleString?.() ?? "—"}{" "}
+
+                          <Table.Cell fontSize="sm">
+                            {displayValue(doc.issueDate)}
                           </Table.Cell>
+
+                          <Table.Cell fontSize="sm">
+                            {displayValue(doc.dueDate)}
+                          </Table.Cell>
+
+                          <Table.Cell fontSize="sm" textAlign="right">
+                            {displayMoney(doc.subtotal)}
+                          </Table.Cell>
+
+                          <Table.Cell fontSize="sm" textAlign="right">
+                            {displayMoney(doc.tax)}
+                          </Table.Cell>
+
+                          <Table.Cell
+                            fontSize="sm"
+                            fontWeight="bold"
+                            textAlign="right"
+                          >
+                            {displayMoney(doc.total)}
+                          </Table.Cell>
+
+                          <Table.Cell fontSize="sm">
+                            {displayValue(doc.currency)}
+                          </Table.Cell>
+
                           <Table.Cell>
-                            <Badge
-                              colorPalette={
-                                doc.status === "validated"
-                                  ? "green"
-                                  : doc.status === "needs_review"
-                                    ? "orange"
-                                    : doc.status === "rejected"
-                                      ? "red"
-                                      : "gray"
-                              }
-                            >
-                              {doc.status.replace("_", " ")}
-                            </Badge>
+                            <VStack align="start" gap={1}>
+                              <Badge
+                                colorPalette={
+                                  doc.status === "validated"
+                                    ? "green"
+                                    : doc.status === "needs_review"
+                                      ? "orange"
+                                      : doc.status === "rejected"
+                                        ? "red"
+                                        : "gray"
+                                }
+                              >
+                                {formatStatus(doc.status)}
+                              </Badge>
+
+                              <Text fontSize="xs" color="gray.500">
+                                {issueCount(doc)} issue
+                                {issueCount(doc) === 1 ? "" : "s"}
+                              </Text>
+                            </VStack>
                           </Table.Cell>
+
                           <Table.Cell textAlign="right">
                             <HStack justify="flex-end">
                               <Button
@@ -386,188 +496,14 @@ export default function App() {
             </Box>
           </VStack>
         </Container>
-
-        {/* Selected Doc Overlay (Simulating a Drawer) */}
         {selectedDoc && (
-          <Box
-            position="fixed"
-            right={0}
-            top={0}
-            h="100vh"
-            w="500px"
-            bg="white"
-            shadow="2xl"
-            zIndex={100}
-            borderLeft="1px solid"
-            borderColor="gray.100"
-            p={8}
-            overflowY="auto"
-          >
-            <VStack align="stretch" gap={6}>
-              <HStack justify="space-between">
-                <Heading size="md">Review Document</Heading>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setSelectedDoc(null)}
-                >
-                  Close
-                </Button>
-              </HStack>
-
-              {selectedDoc.validationIssues.length > 0 && (
-                <Box
-                  p={4}
-                  bg="orange.50"
-                  borderRadius="md"
-                  border="1px solid"
-                  borderColor="orange.100"
-                >
-                  <VStack align="start" gap={2}>
-                    <HStack color="orange.700">
-                      <AlertCircle size={16} />{" "}
-                      <Text fontWeight="bold" fontSize="sm">
-                        Validation Issues
-                      </Text>
-                    </HStack>
-                    {selectedDoc.validationIssues.map((issue, i) => (
-                      <Text key={i} fontSize="xs" color="orange.800">
-                        • {issue.message}
-                      </Text>
-                    ))}
-                  </VStack>
-                </Box>
-              )}
-
-              <VStack align="stretch" gap={4}>
-                <Box>
-                  <Text fontSize="xs" fontWeight="bold" color="gray.500">
-                    SUPPLIER
-                  </Text>
-                  <Text fontSize="md" fontWeight="medium">
-                    {selectedDoc.supplierName}
-                  </Text>
-                </Box>
-                <SimpleGrid columns={2} gap={4}>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.500">
-                      TYPE
-                    </Text>
-                    <Text fontSize="sm">
-                      {selectedDoc.documentType.replace("_", " ")}
-                    </Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.500">
-                      NUMBER
-                    </Text>
-                    <Text fontSize="sm">{selectedDoc.documentNumber}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.500">
-                      ISSUE DATE
-                    </Text>
-                    <Text fontSize="sm">{selectedDoc.issueDate}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="xs" fontWeight="bold" color="gray.500">
-                      CURRENCY
-                    </Text>
-                    <Text fontSize="sm">{selectedDoc.currency}</Text>
-                  </Box>
-                </SimpleGrid>
-
-                <Box mt={4}>
-                  <Text fontSize="xs" fontWeight="bold" color="gray.500" mb={2}>
-                    LINE ITEMS
-                  </Text>
-                  <Table.Root size="sm" variant="outline">
-                    <Table.Header bg="gray.50">
-                      <Table.Row>
-                        <Table.ColumnHeader>Desc</Table.ColumnHeader>
-                        <Table.ColumnHeader textAlign="right">
-                          Qty
-                        </Table.ColumnHeader>
-                        <Table.ColumnHeader textAlign="right">
-                          Total
-                        </Table.ColumnHeader>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {selectedDoc.lineItems.map((item, i) => (
-                        <Table.Row key={i}>
-                          <Table.Cell fontSize="xs">
-                            {item.description}
-                          </Table.Cell>
-                          <Table.Cell fontSize="xs" textAlign="right">
-                            {item.quantity}
-                          </Table.Cell>
-                          <Table.Cell fontSize="xs" textAlign="right">
-                            {item.amount}
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
-                    </Table.Body>
-                  </Table.Root>
-                </Box>
-
-                <Box bg="gray.50" p={4} borderRadius="md">
-                  <VStack align="stretch" gap={2}>
-                    <HStack justify="space-between">
-                      <Text fontSize="sm">Subtotal</Text>
-                      <Text fontSize="sm">{selectedDoc.subtotal}</Text>
-                    </HStack>
-                    <HStack justify="space-between">
-                      <Text fontSize="sm">Tax</Text>
-                      <Text fontSize="sm">{selectedDoc.tax}</Text>
-                    </HStack>
-                    <HStack
-                      justify="space-between"
-                      pt={2}
-                      borderTop="1px solid"
-                      borderColor="gray.200"
-                    >
-                      <Text fontWeight="bold">Total</Text>
-                      <Text fontWeight="bold">
-                        {selectedDoc.currency} {selectedDoc.total}
-                      </Text>
-                    </HStack>
-                  </VStack>
-                </Box>
-              </VStack>
-
-              <HStack gap={4} pt={4}>
-                <Button
-                  w="full"
-                  colorPalette="blue"
-                  onClick={() =>
-                    updateDoc(selectedDoc._id, { status: "validated" })
-                  }
-                >
-                  Confirm & Validate
-                </Button>
-                <Button
-                  w="full"
-                  variant="outline"
-                  colorPalette="red"
-                  onClick={() =>
-                    updateDoc(selectedDoc._id, { status: "rejected" })
-                  }
-                >
-                  Reject
-                </Button>
-                <Button
-                  w="full"
-                  variant="ghost"
-                  colorPalette="red"
-                  onClick={() => deleteDoc(selectedDoc._id)}
-                >
-                  Delete
-                </Button>
-              </HStack>
-            </VStack>
-          </Box>
-        )}
+          <DocumentReviewModal
+            selectedDoc={selectedDoc}
+            onClose={() => setSelectedDoc(null)}
+            updateDoc={updateDoc}
+            deleteDoc={deleteDoc}
+          />
+        )}{" "}
       </Box>
     </ChakraProvider>
   );
