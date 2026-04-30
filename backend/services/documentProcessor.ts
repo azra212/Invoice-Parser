@@ -6,6 +6,8 @@ import {
   ValidationIssue,
 } from "../models/documentTypes";
 import { GeminiParser } from "./parsers/geminiParser";
+import { CsvParser } from "./parsers/csvParser";
+import { TxtParser } from "./parsers/txtParser";
 import { DocumentValidator } from "./validators/documentValidator";
 import { Document } from "../models/Document";
 import { normalizeExtractedData } from "./normalizers/documentNormalizer";
@@ -17,12 +19,27 @@ export class DocumentProcessor {
     mimeType: string,
     fileName: string,
   ): Promise<ProcessedDocument> {
-    // 1. Extraction (Using established Gemini Parser)
-    const rawExtractedData = await GeminiParser.extractData(
-      fileBuffer,
-      mimeType,
-      fileName,
-    );
+    // 1. Extraction
+    // CSV and TXT use small deterministic parsers.
+    // Gemini focused on PDFs/images.
+    const lowerFileName = fileName.toLowerCase();
+
+    let rawExtractedData: ExtractedData;
+
+    if (mimeType === "text/csv" || lowerFileName.endsWith(".csv")) {
+      rawExtractedData = CsvParser.extractData(fileBuffer);
+      console.log("csv parser chosen");
+    } else if (mimeType === "text/plain" || lowerFileName.endsWith(".txt")) {
+      rawExtractedData = TxtParser.extractData(fileBuffer);
+      console.log("txt parser chosen");
+    } else {
+      rawExtractedData = await GeminiParser.extractData(
+        fileBuffer,
+        mimeType,
+        fileName,
+      );
+    }
+
     const extractedData = normalizeExtractedData(rawExtractedData);
     // 2. Validation
     const validationIssues = [
