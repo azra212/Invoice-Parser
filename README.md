@@ -1,273 +1,116 @@
-# 📄 Smart Document Processing System
+# Smart Document Processing System
 
-A full-stack application for extracting, validating, and managing structured data from business documents (invoices and purchase orders).
+A full-stack take-home project for uploading, extracting, validating, reviewing, and managing business documents such as invoices and purchase orders.
 
-Built with a MERN-style architecture, the system focuses on **reliability, transparency, and practical use of AI**.
+The system uses AI only for extraction from PDFs/images, while validation is handled by deterministic application logic.
 
----
+## Tech Stack
 
-## 🚀 Features
+- React + Vite
+- Chakra UI
+- Node.js + Express
+- TypeScript
+- MongoDB + Mongoose
+- Google Gemini
 
-### 📥 Document Processing Pipeline
+## Processing Flow
 
-End-to-end workflow:
-
-```
-Upload → Extract → Normalize → Validate → Store → Review → Update/Delete
-```
-
----
-
-### 📄 Multi-Format Support
-
-- PDF and images (AI-based extraction)
-- CSV and TXT (basic support, extensible)
-
----
-
-### 🤖 AI-Powered Extraction
-
-- Uses **Google Gemini (Flash)** for OCR + structured data extraction
-- AI is used **only for extraction**, not validation
-- Outputs normalized into a consistent schema
-
----
-
-### ⚙️ Extraction Strategy
-
-Currently, the system uses **Google Gemini** for all document extraction (PDFs, images, CSV, and TXT).
-
-This ensures consistent structured output across different file types, especially for unstructured inputs like scanned invoices.
-
-Planned improvement:
-
-- Introduce **deterministic parsers for structured formats**:
-  - CSV → parsed using libraries like `csv-parse`
-  - TXT → simple key-value and regex-based extraction
-
-This will:
-
-- reduce reliance on AI for structured data
-- improve reliability and performance
-- make validation more predictable
-
-AI extraction will remain the primary approach for:
-
-- PDFs
-- images
-- unstructured or inconsistent documents
-
-### ✅ Validation Engine (Deterministic)
-
-Custom rule-based validation:
-
-- Required fields (supplier, total, date, etc.)
-- Arithmetic checks (subtotal + tax = total)
-- Date validation (issue vs due date)
-- Line item consistency
-
-Validation produces:
-
-- **errors** → require review
-- **warnings** → optional review
-
----
-
-### 🗄️ Persistent Storage
-
-- MongoDB with Mongoose
-- Flexible schema for semi-structured documents
-- No in-memory storage
-
----
-
-### 🔄 Document Lifecycle
-
-Each document has a status:
-
-- `uploaded`
-- `needs_review`
-- `validated`
-- `rejected`
-
-Users can:
-
-- manually override status
-- edit extracted fields
-- re-run validation
-
----
-
-### 🖥️ Frontend Dashboard
-
-Built with **React + Chakra UI**:
-
-- Document table (status, supplier, totals)
-- Review panel with validation issues
-- Manual validation / rejection
-- Delete support (full CRUD)
-
----
-
-## 🛠️ Architecture
-
-### Backend (Node.js + Express + TypeScript)
-
-```
-/backend
-  /controllers     → request handling (upload, get, update, delete)
-  /services
-    /parsers       → AI extraction (Gemini)
-    /normalizers   → clean & standardize AI output
-    /validators    → rule-based validation engine
-    documentProcessor.ts → orchestrates pipeline
-  /models          → Mongoose schemas & types
-  /routes          → API endpoints
+```txt
+Upload → Extract → Normalize → Validate → Store → Review
 ```
 
----
+## Supported Files
 
-### Frontend (React + Vite + Chakra UI)
+| File type    | Processing method    |
+| ------------ | -------------------- |
+| PDF          | Gemini               |
+| PNG/JPG/JPEG | Gemini               |
+| CSV          | Deterministic parser |
+| TXT          | Deterministic parser |
 
-- Functional components + hooks
-- Local state management (no external state library)
-- REST API integration
+## Core Features
 
----
+- Upload business documents
+- Extract invoice or purchase order data
+- Normalize extracted fields
+- Validate totals, dates, required fields, line items, and duplicate document numbers
+- Store processed documents in MongoDB
+- Review, edit, validate, reject, or delete documents
+- Re-run validation after manual corrections
 
-## 📡 API Endpoints
+## Extracted Data
 
-| Method | Endpoint                | Description                  |
-| ------ | ----------------------- | ---------------------------- |
-| POST   | `/api/documents/upload` | Upload & process document    |
-| GET    | `/api/documents`        | List all documents           |
-| PATCH  | `/api/documents/:id`    | Update + revalidate document |
-| DELETE | `/api/documents/:id`    | Delete document              |
+- Document type
+- Supplier/company name
+- Document number
+- Issue date
+- Due date
+- Currency
+- Line items
+- Subtotal
+- Tax
+- Total
 
----
+## Document Statuses
 
-## 🧠 Design Decisions
+| Status         | Meaning                                     |
+| -------------- | ------------------------------------------- |
+| `uploaded`     | Document was uploaded                       |
+| `needs_review` | Validation issues found                     |
+| `validated`    | Document passed validation or was confirmed |
+| `rejected`     | Document was manually rejected              |
 
-### 1. AI for Extraction Only
+## API Endpoints
 
-AI (Gemini) is used strictly for:
+| Method   | Endpoint                | Description                     |
+| -------- | ----------------------- | ------------------------------- |
+| `POST`   | `/api/documents/upload` | Upload and process document     |
+| `GET`    | `/api/documents`        | Get all documents               |
+| `PATCH`  | `/api/documents/:id`    | Update and re-validate document |
+| `DELETE` | `/api/documents/:id`    | Delete document                 |
 
-- OCR
-- mapping document → structured JSON
+## Setup
 
-Validation is handled deterministically to ensure:
-
-- predictability
-- debuggability
-- consistency
-
----
-
-### 2. Normalization Layer
-
-AI output is cleaned before validation:
-
-- `"null"` → `null`
-- numeric strings → numbers
-- currency separated from totals
-
-This prevents downstream errors and keeps validation reliable.
-
----
-
-### 3. Rule-Based Validation (Not AI)
-
-Validation is implemented as explicit rules:
-
-- easier to test
-- easier to extend
-- avoids hallucination issues
-
----
-
-### 4. Manual Override Support
-
-Users can mark documents as:
-
-- validated
-- rejected
-
-even if validation issues exist.
-
-This reflects real-world workflows.
-
----
-
-### 5. MongoDB for Flexibility
-
-Documents can vary in structure:
-
-- optional fields
-- inconsistent formats
-
-MongoDB allows flexible schema while maintaining structure via Mongoose.
-
----
-
-## ⚙️ Setup
-
-### Backend
-
-```bash
-cd backend
-npm install
-npm run dev
-```
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
----
-
-## 🔐 Environment Variables
-
-Create a `.env` file in `/backend`:
+Create a `.env` file:
 
 ```env
-GEMINI_API_KEY=your_api_key_here
-MONGO_URI=your_mongodb_connection
+PORT=3000
+MONGO_URI=your_mongodb_connection_string
+GEMINI_API_KEY=your_gemini_api_key
 ```
 
----
+Install and run:
 
-## 🚧 Future Improvements
+```bash
+npm install
+npm run dev
+```
 
-- CSV/TXT deterministic parsers (reduce AI dependency)
-- Duplicate detection using MongoDB queries
-- Improved validation rule engine (config-driven)
-- AI fallback provider (e.g. OpenAI)
-- Better UX for validation vs manual override
-- Unit tests for validators and parsers
+Run tests:
 
----
+```bash
+npm test
+```
 
-## 📌 Summary
+## Testing
 
-This project demonstrates:
+Tests cover deterministic logic such as parsing, normalization, required fields, totals, dates, and line item validation.
 
-- practical use of AI in a constrained role
-- clean separation of concerns
-- full CRUD document workflow
-- handling of real-world messy data
+Gemini calls are not unit tested because they depend on a third-party API.
 
----
+## Current State
 
-## 📷 Screenshots (optional)
+Implemented: upload, extraction, parsing, normalization, validation, MongoDB storage, dashboard, review panel, edit/delete support, status workflow, and basic tests.
 
-_Add screenshots here if needed._
+Still to polish: live deployment, `.env.example`, View Original button.
 
----
+## Future Improvements
 
-## 🧑‍💻 Author
-
-Built as a take-home project.
+- Use OCR as the first extraction step for simpler PDFs and images, and fall back to AI only for messy or poorly structured documents. This would reduce token usage and lower processing costs.
+- Store original uploaded files
+- Add authentication
+- Add API documentation
+- Add Docker setup
+- Add queue-based processing for large files
+- Improve OCR handling for messy scanned documents
+- Allow multiple file uploads
