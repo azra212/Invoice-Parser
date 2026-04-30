@@ -28,11 +28,22 @@ const upload = multer({
   },
 });
 
-router.post(
-  "/upload",
-  upload.single("file"),
-  DocumentController.uploadDocument,
-);
+router.post("/upload", (req, res, next) => {
+  upload.single("file")(req, res, (error) => {
+    if (error) {
+      return res.status(400).json({
+        success: false,
+        code: "INVALID_FILE_TYPE",
+        message:
+          error.message === "Invalid file type"
+            ? "Unsupported file type. Please upload a PDF, image, CSV, or TXT file."
+            : error.message,
+      });
+    }
+
+    return DocumentController.uploadDocument(req, res);
+  });
+});
 router.get("/", DocumentController.getDocuments);
 router.patch("/:id", DocumentController.updateDocument);
 router.delete("/:id", DocumentController.deleteDocument);

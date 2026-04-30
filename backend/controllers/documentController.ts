@@ -55,16 +55,17 @@ export class DocumentController {
     try {
       const documents = await Document.find().sort({ createdAt: -1 });
 
-      res.json({
+      return res.json({
         success: true,
         data: documents,
       });
     } catch (error) {
-      res.status(500).json({
+      console.error("Fetch Documents Error:", error);
+
+      return res.status(500).json({
         success: false,
-        error: {
-          message: "Failed to fetch documents",
-        },
+        code: "DOCUMENT_FETCH_FAILED",
+        message: "Failed to fetch documents.",
       });
     }
   }
@@ -79,7 +80,8 @@ export class DocumentController {
       if (!id || id === "undefined") {
         return res.status(400).json({
           success: false,
-          error: { message: "Invalid document ID" },
+          code: "INVALID_DOCUMENT_ID",
+          message: "Invalid document ID.",
         });
       }
 
@@ -89,7 +91,8 @@ export class DocumentController {
       if (!existingDoc) {
         return res.status(404).json({
           success: false,
-          error: { message: "Document not found" },
+          code: "DOCUMENT_NOT_FOUND",
+          message: "Document not found.",
         });
       }
 
@@ -130,24 +133,23 @@ export class DocumentController {
         status: finalStatus,
       });
 
-      // 5. Save
+      // 6. Save
       const savedDoc = await existingDoc.save();
 
-      res.json({
+      return res.json({
         success: true,
         data: savedDoc,
       });
     } catch (error: any) {
-      console.error("Update error:", error);
+      console.error("Update Document Error:", error);
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        error: { message: "Failed to update document" },
+        code: "DOCUMENT_UPDATE_FAILED",
+        message: "Failed to update document.",
       });
     }
   }
-
-  // documentController.ts
 
   static async deleteDocument(req: Request, res: Response) {
     try {
@@ -156,7 +158,8 @@ export class DocumentController {
       if (!id || id === "undefined") {
         return res.status(400).json({
           success: false,
-          error: { message: "Invalid document ID" },
+          code: "INVALID_DOCUMENT_ID",
+          message: "Invalid document ID.",
         });
       }
 
@@ -165,20 +168,22 @@ export class DocumentController {
       if (!deletedDoc) {
         return res.status(404).json({
           success: false,
-          error: { message: "Document not found" },
+          code: "DOCUMENT_NOT_FOUND",
+          message: "Document not found.",
         });
       }
 
-      res.json({
+      return res.json({
         success: true,
         data: deletedDoc,
       });
     } catch (error: any) {
-      console.error("Delete error:", error);
+      console.error("Delete Document Error:", error);
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
-        error: { message: "Failed to delete document" },
+        code: "DOCUMENT_DELETE_FAILED",
+        message: "Failed to delete document.",
       });
     }
   }
