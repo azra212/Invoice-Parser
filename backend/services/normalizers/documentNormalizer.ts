@@ -7,10 +7,17 @@ function cleanString(value: unknown): string | null {
 
   const str = String(value).trim();
 
+  const lower = str.toLowerCase();
+
   if (
     !str ||
-    str.toLowerCase() === "null" ||
-    str.toLowerCase() === "undefined"
+    lower === "null" ||
+    lower === "undefined" ||
+    lower === "n/a" ||
+    lower === "na" ||
+    lower === "none" ||
+    lower === "unknown" ||
+    lower === "not provided"
   ) {
     return null;
   }
@@ -46,7 +53,7 @@ export function normalizeExtractedData(raw: any): ExtractedData {
 
     lineItems: Array.isArray(raw.lineItems)
       ? raw.lineItems.map((item: any) => ({
-          description: cleanString(item.description) ?? "Unknown item",
+          description: cleanString(item.description),
           quantity: cleanNumber(item.quantity),
           unitPrice: cleanNumber(item.unitPrice),
           amount: cleanNumber(item.amount),

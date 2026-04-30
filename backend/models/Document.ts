@@ -26,7 +26,10 @@ const documentSchema = new mongoose.Schema(
     },
 
     supplierName: String,
-    documentNumber: String,
+    documentNumber: {
+      type: String,
+      index: true,
+    },
     issueDate: String,
     dueDate: String,
     currency: String,

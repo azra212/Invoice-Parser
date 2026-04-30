@@ -6,15 +6,36 @@ let aiInstance: GoogleGenAI | null = null;
 function getAI() {
   if (!aiInstance) {
     const apiKey = process.env.GEMINI_API_KEY;
+
     if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
       throw new Error(
         "GEMINI_API_KEY is missing or invalid in your .env file.",
       );
     }
+
     aiInstance = new GoogleGenAI({ apiKey });
   }
+
   return aiInstance;
 }
+
+const nullableString = {
+  anyOf: [{ type: Type.STRING }, { type: Type.NULL }],
+};
+
+const nullableNumber = {
+  anyOf: [{ type: Type.NUMBER }, { type: Type.NULL }],
+};
+
+const nullableDocumentType = {
+  anyOf: [
+    {
+      type: Type.STRING,
+      enum: ["invoice", "purchase_order"],
+    },
+    { type: Type.NULL },
+  ],
+};
 
 export class GeminiParser {
   static async extractData(
@@ -23,17 +44,23 @@ export class GeminiParser {
     fileName: string,
   ): Promise<ExtractedData> {
     const ai = getAI();
+
+    const lowerFileName = fileName.toLowerCase();
+
     const isText =
       mimeType === "text/plain" ||
       mimeType === "text/csv" ||
-      fileName.endsWith(".csv") ||
-      fileName.endsWith(".txt");
+      lowerFileName.endsWith(".csv") ||
+      lowerFileName.endsWith(".txt");
 
     const contents: any[] = [];
 
     if (isText) {
       contents.push({
-        text: `DATA CONTENT OF ${fileName}:\n${fileBuffer.toString("utf-8")}`,
+        text: `SOURCE FILE NAME: ${fileName}
+
+SOURCE FILE CONTENT:
+${fileBuffer.toString("utf-8")}`,
       });
     } else {
       contents.push({
@@ -46,31 +73,70 @@ export class GeminiParser {
     }
 
     contents.push({
-      text: `Extract structured data from this document.
+      text: `You are a strict data extraction engine.
 
-Return ONLY valid JSON.
+Return ONLY valid JSON matching the schema.
 
-Required fields:
-- documentType: "invoice" or "purchase_order"
-- supplierName
-- documentNumber
-- issueDate - ISO standard
-- dueDate -  ISO standard
-- currency
-- lineItems
-- subtotal
-- tax
-- total
+Critical rules:
+- Extract only text or values explicitly visible in the document.
+- Do not guess.
+- Do not infer.
+- Do not estimate.
+- Do not fill missing fields using examples, common invoice patterns, filenames, or prior knowledge.
+- If a value is not explicitly present, return null.
+- If a value is ambiguous or unclear, return null.
+- Do not invent supplier names.
+- Do not invent document numbers.
+- Do not invent issue dates or due dates.
+- Do not invent currency.
+- Do not invent subtotal, tax, or total.
+- Do not assume the document type unless the document clearly says invoice or purchase order.
+- Do not use the source file name as a document number.
+- Do not use today's date.
+- Do not calculate document-level subtotal, tax, or total unless those values are explicitly labeled in the document.
+- A table column called "total" is not automatically the document total.
+- If the file only contains line items, extract the line items and return null for missing document metadata.
+- The document may be written in a language other than English.
+- Translate field labels as needed to understand and extract the data.
+- Return all JSON field names exactly as specified in English.
+- Return documentType only as "invoice", "purchase_order", or null.
+- Keep supplier/company names exactly as written unless they are clearly transliterated.
+- Return line item descriptions as stated in the document, without translation. 
+- Do not treat unfamiliar foreign-language text as missing unless you truly cannot identify the value.
+- Understand common invoice tax labels in other languages.
 
-Important rules:
-- issueDate is the document creation / invoice date.
-- dueDate is the payment deadline. If missing, return null.
-- currency must be a separate ISO-style code like EUR, USD, BAM, GBP, or other currency code you detected.
-- total must be a number only, without currency symbols.
-- subtotal, tax, and total must be numbers only, without currency symbols.
-- If a field is missing, make sure to NOT return it in the JSON response.
-- Do not invent values.
-`,
+Date rules:
+- Dates must be returned as YYYY-MM-DD.
+- Only return a date if the full date is explicitly present.
+- If only a month/year or partial date is present, return null.
+- If the date format is ambiguous, return null.
+
+Line item rules:
+- Extract line items only from actual rows in an item/product/service table.
+- Do not treat table headers as line items.
+- For each line item field, return null if missing.
+- It is allowed for lineItems to be an empty array.
+
+Expected JSON shape:
+{
+  "documentType": "invoice" | "purchase_order" | null,
+  "supplierName": string | null,
+  "documentNumber": string | null,
+  "issueDate": string | null,
+  "dueDate": string | null,
+  "currency": string | null,
+  "lineItems": [
+    {
+      "description": string | null,
+      "quantity": number | null,
+      "unitPrice": number | null,
+      "amount": number | null
+    }
+  ],
+  "subtotal": number | null,
+  "tax": number | null,
+  "total": number | null
+}`,
     });
 
     const response = await ai.models.generateContent({
@@ -81,43 +147,35 @@ Important rules:
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            documentType: {
-              type: Type.STRING,
-              enum: ["invoice", "purchase_order"],
-            },
-            supplierName: { type: Type.STRING },
-            documentNumber: { type: Type.STRING },
-            issueDate: {
-              type: Type.STRING,
-              description: "ISO date format YYYY-MM-DD",
-            },
-            dueDate: {
-              type: Type.STRING,
-              description: "ISO date format YYYY-MM-DD",
-            },
-            currency: { type: Type.STRING },
+            documentType: nullableDocumentType,
+            supplierName: nullableString,
+            documentNumber: nullableString,
+            issueDate: nullableString,
+            dueDate: nullableString,
+            currency: nullableString,
             lineItems: {
               type: Type.ARRAY,
               items: {
                 type: Type.OBJECT,
                 properties: {
-                  description: { type: Type.STRING },
-                  quantity: { type: Type.NUMBER },
-                  unitPrice: { type: Type.NUMBER },
-                  amount: { type: Type.NUMBER },
+                  description: nullableString,
+                  quantity: nullableNumber,
+                  unitPrice: nullableNumber,
+                  amount: nullableNumber,
                 },
                 required: ["description", "quantity", "unitPrice", "amount"],
               },
             },
-            subtotal: { type: Type.NUMBER },
-            tax: { type: Type.NUMBER },
-            total: { type: Type.NUMBER },
+            subtotal: nullableNumber,
+            tax: nullableNumber,
+            total: nullableNumber,
           },
           required: [
             "documentType",
             "supplierName",
             "documentNumber",
             "issueDate",
+            "dueDate",
             "currency",
             "lineItems",
             "subtotal",
@@ -129,6 +187,18 @@ Important rules:
     });
 
     const result = JSON.parse(response.text || "{}");
-    return result as ExtractedData;
+
+    return {
+      documentType: result.documentType ?? null,
+      supplierName: result.supplierName ?? null,
+      documentNumber: result.documentNumber ?? null,
+      issueDate: result.issueDate ?? null,
+      dueDate: result.dueDate ?? null,
+      currency: result.currency ?? null,
+      lineItems: Array.isArray(result.lineItems) ? result.lineItems : [],
+      subtotal: result.subtotal ?? null,
+      tax: result.tax ?? null,
+      total: result.total ?? null,
+    } as ExtractedData;
   }
 }
