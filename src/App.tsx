@@ -133,6 +133,7 @@ export default function App() {
   const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
 
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   // Helpers
 
@@ -221,29 +222,42 @@ export default function App() {
 
   const updateDoc = async (id: string, updates: Partial<ProcessedDocument>) => {
     try {
+      setActionError(null);
+
       const res = await fetch(`/api/documents/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(updates),
       });
 
       const data = await res.json();
 
-      if (!data.success) {
-        console.error("Update failed", data);
+      if (!res.ok || !data.success) {
+        setActionError(
+          data.message ||
+            data.error?.message ||
+            "Failed to update document. Please try again.",
+        );
         return;
       }
 
       const updatedDoc = data.data;
 
-      setDocuments((prev) => prev.map((d) => (d._id === id ? updatedDoc : d)));
+      setDocuments((prev) =>
+        prev.map((doc) => (doc._id === id ? updatedDoc : doc)),
+      );
 
       setSelectedDoc(updatedDoc);
-    } catch (err) {
-      console.error(err);
+    } catch (error) {
+      console.error("Update failed:", error);
+
+      setActionError(
+        "Could not connect to the server while updating the document.",
+      );
     }
   };
-
   const deleteDoc = async (id: string) => {
     if (!confirm("Delete this document?")) return;
 
@@ -472,7 +486,10 @@ export default function App() {
                               <Button
                                 size="xs"
                                 variant="ghost"
-                                onClick={() => setSelectedDoc(doc)}
+                                onClick={() => {
+                                  setActionError(null);
+                                  setSelectedDoc(doc);
+                                }}
                               >
                                 Review
                               </Button>
@@ -499,9 +516,13 @@ export default function App() {
         {selectedDoc && (
           <DocumentReviewModal
             selectedDoc={selectedDoc}
-            onClose={() => setSelectedDoc(null)}
+            onClose={() => {
+              setActionError(null);
+              setSelectedDoc(null);
+            }}
             updateDoc={updateDoc}
             deleteDoc={deleteDoc}
+            actionError={actionError}
           />
         )}{" "}
       </Box>
