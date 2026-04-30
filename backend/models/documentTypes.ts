@@ -3,7 +3,7 @@
 // It serves as a contract for how document data should be represented throughout the application.
 
 interface LineItem {
-  description: string;
+  description: string | null;
   quantity: number | null;
   unitPrice: number | null;
   amount: number | null;
