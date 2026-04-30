@@ -35,7 +35,6 @@ export class DocumentValidator {
     }
 
     // 2. Validate Dates
-    // 2. Validate Dates
     let parsedIssueDate: Date | null = null;
     let parsedDueDate: Date | null = null;
 
@@ -91,7 +90,6 @@ export class DocumentValidator {
       });
     }
 
-    // 3. Validate Line Items
     // 3. Validate Line Items
     data.lineItems.forEach((item, index) => {
       if (!item.description) {

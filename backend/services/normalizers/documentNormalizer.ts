@@ -2,6 +2,20 @@
 
 import { ExtractedData } from "../../models/documentTypes";
 
+const NULL_STRINGS = new Set([
+  "null",
+  "undefined",
+  "n/a",
+  "na",
+  "none",
+  "unknown",
+  "not provided",
+]);
+
+function isNullishString(value: string) {
+  return !value || NULL_STRINGS.has(value.toLowerCase());
+}
+
 function cleanString(value: unknown): string | null {
   if (value === null || value === undefined) return null;
 
@@ -9,16 +23,7 @@ function cleanString(value: unknown): string | null {
 
   const lower = str.toLowerCase();
 
-  if (
-    !str ||
-    lower === "null" ||
-    lower === "undefined" ||
-    lower === "n/a" ||
-    lower === "na" ||
-    lower === "none" ||
-    lower === "unknown" ||
-    lower === "not provided"
-  ) {
+  if (isNullishString(str)) {
     return null;
   }
 
@@ -26,11 +31,55 @@ function cleanString(value: unknown): string | null {
 }
 
 function cleanNumber(value: unknown): number | null {
-  if (value === null || value === undefined || value === "") return null;
+  if (value === null || value === undefined) return null;
 
-  if (typeof value === "number") return value;
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
 
-  const cleaned = String(value).replace(/[^\d.-]/g, "");
+  const str = String(value).trim();
+
+  if (isNullishString(str)) {
+    return null;
+  }
+
+  // Keep only digits, comma, dot, and minus sign
+  let cleaned = str.replace(/[^\d,.-]/g, "");
+
+  if (!cleaned) {
+    return null;
+  }
+
+  const hasComma = cleaned.includes(",");
+  const hasDot = cleaned.includes(".");
+
+  if (hasComma && hasDot) {
+    const lastComma = cleaned.lastIndexOf(",");
+    const lastDot = cleaned.lastIndexOf(".");
+
+    // Whichever separator appears last is most likely the decimal separator
+    if (lastComma > lastDot) {
+      // European format: 1.234,56 -> 1234.56
+      cleaned = cleaned.replace(/\./g, "").replace(",", ".");
+    } else {
+      // US/UK format: 1,234.56 -> 1234.56
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else if (hasComma && !hasDot) {
+    const commaParts = cleaned.split(",");
+
+    if (commaParts.length === 2 && commaParts[1].length <= 2) {
+      // Decimal comma: 99,99 -> 99.99
+      cleaned = cleaned.replace(",", ".");
+    } else {
+      // Thousands commas: 1,234 -> 1234
+      cleaned = cleaned.replace(/,/g, "");
+    }
+  } else {
+    // No comma issue; remove thousands separators only if needed
+    cleaned = cleaned;
+  }
+
   const parsed = Number(cleaned);
 
   return Number.isFinite(parsed) ? parsed : null;
