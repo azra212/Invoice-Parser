@@ -23,13 +23,8 @@ export function Navbar({ onUploadClick }: NavbarProps) {
             Invoice Parser
           </Heading>
         </HStack>
+
         <HStack gap={4}>
-          <Button size="sm" variant="ghost">
-            Dashboard
-          </Button>
-          <Button size="sm" variant="ghost">
-            History
-          </Button>
           <Button size="sm" colorPalette="blue" onClick={onUploadClick}>
             New Upload
           </Button>

@@ -155,7 +155,8 @@ export default function App() {
                 <Box>
                   <Heading size="lg">Document Workspace</Heading>
                   <Text color="gray.600">
-                    Extracting intelligence from your business documents.
+                    Upload invoices and documents to extract, review, and manage
+                    structured data.
                   </Text>
                 </Box>
                 {uploading && (
@@ -199,6 +200,7 @@ export default function App() {
               <Box p={6} borderBottom="1px solid" borderColor="gray.50">
                 <HStack justify="space-between">
                   <Heading size="md">Recent Documents</Heading>
+
                   <HStack>
                     <Button
                       size="sm"

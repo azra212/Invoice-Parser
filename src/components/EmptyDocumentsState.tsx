@@ -17,6 +17,9 @@ export function EmptyDocumentsState({
       <Text color="gray.500">
         No documents processed yet. Start by uploading an invoice or PO.
       </Text>
+      <Text fontSize="sm" color="gray.500">
+        Supports PDF, PNG, JPG, CSV, and TXT files.
+      </Text>
 
       <Button colorPalette="blue" size="md" onClick={onUploadClick}>
         Upload First Document
