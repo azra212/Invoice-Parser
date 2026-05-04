@@ -43,6 +43,13 @@ interface ProcessedDocument extends ExtractedData {
   createdAt: string;
   fileName: string;
   originalFile?: OriginalFile;
+  updatedAt: string;
 }
 
-export type { LineItem, ExtractedData, ValidationIssue, ProcessedDocument, OriginalFile };
+export type {
+  LineItem,
+  ExtractedData,
+  ValidationIssue,
+  ProcessedDocument,
+  OriginalFile,
+};

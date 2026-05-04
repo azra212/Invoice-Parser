@@ -52,6 +52,7 @@ Upload → Extract → Normalize → Validate → Store → Review
 - Total
 
 Example extracted JSON object:
+
 ```json
 {
   "documentType": "invoice",
@@ -137,55 +138,3 @@ Still to polish: live deployment, `.env.example`, View Original button.
 - Add queue-based processing for large files
 - Improve OCR handling for messy scanned documents
 - Allow multiple file uploads
-
-Priority 1
-
-Remove uploaded files from backend/uploads.
-Change frontend imports to import type.
-Type documents and selectedDoc.
-Remove dead “Original” button or disable it.
-Make upload/update status logic consistent.
-Split format helpers into src/utils/formatters.ts.
-Priority 2
-
-Then:
-
-Extract API calls into src/api/documentsApi.ts.
-Extract DocumentTable from App.tsx.
-Extract LineItemsEditor from DocumentReviewModal.tsx.
-Extract ValidationIssuesBox.
-Add file size limit to Multer.
-Remove console logs.
-Priority 3
-
-Optional polish:
-
-Refactor validator into simple rule functions.
-Move shared types to shared/documentTypes.ts.
-Add .env.example.
-Add API response types.
-Add tests for update status behavior.
-
-7. Biggest “reviewer impression” risks
-
-These are the things I would expect a reviewer to notice:
-
-1. Huge frontend files
-
-Not fatal, but easy to criticize.
-
-2. any in frontend state
-
-This weakens the TypeScript story.
-
-3. Status inconsistency
-
-A clean upload becomes uploaded, but a clean edit becomes validated.
-
-4. Dead Original button
-
-A visible button that only logs to console looks unfinished.
-
-5. Uploaded files included in project zip
-
-Even though .gitignore has uploads/, the zip includes uploaded files. Remove them.
