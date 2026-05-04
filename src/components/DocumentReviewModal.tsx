@@ -216,7 +216,17 @@ export function DocumentReviewModal({
           <Heading size="md">Review Document</Heading>
 
           <HStack gap={2}>
-            <Button variant="ghost" size="sm" onClick={() => {}}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!selectedDoc.originalFile}
+              onClick={() => {
+                window.open(
+                  `/api/documents/${selectedDoc._id}/original`,
+                  "_blank",
+                );
+              }}
+            >
               <ExternalLink size={16} />
               Original
             </Button>

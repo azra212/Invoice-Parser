@@ -2,7 +2,8 @@ node_modules/
 build/
 dist/
 coverage/
-uploads/
+backend/uploads/*
+!backend/uploads/.gitkeep
 .DS_Store
 *.log
 .env*

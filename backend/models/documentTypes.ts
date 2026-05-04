@@ -1,6 +1,5 @@
 // This file defines data structures related to documents, including the extracted data format,
 // validation issues, and the final processed document structure.
-// It serves as a contract for how document data should be represented throughout the application.
 
 interface LineItem {
   description: string | null;
@@ -28,12 +27,22 @@ interface ValidationIssue {
   severity: "error" | "warning";
 }
 
+interface OriginalFile {
+  originalName: string;
+  storedName: string;
+  path: string;
+  mimeType: string;
+}
+
 interface ProcessedDocument extends ExtractedData {
   id: string;
+  _id?: string;
+
   status: "uploaded" | "needs_review" | "validated" | "rejected";
   validationIssues: ValidationIssue[];
   createdAt: string;
   fileName: string;
+  originalFile?: OriginalFile;
 }
 
-export type { LineItem, ExtractedData, ValidationIssue, ProcessedDocument };
+export type { LineItem, ExtractedData, ValidationIssue, ProcessedDocument, OriginalFile };

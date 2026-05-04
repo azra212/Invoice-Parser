@@ -16,9 +16,20 @@ const validationIssueSchema = new mongoose.Schema({
   },
 });
 
+const originalFileSchema = new mongoose.Schema(
+  {
+    originalName: String,
+    storedName: String,
+    path: String,
+    mimeType: String,
+  },
+  { _id: false },
+);
+
 const documentSchema = new mongoose.Schema(
   {
     fileName: String,
+    originalFile: originalFileSchema,
 
     documentType: {
       type: String,

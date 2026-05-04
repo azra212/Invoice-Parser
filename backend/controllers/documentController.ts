@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { DocumentProcessor } from "../services/documentProcessor";
 import fs from "fs";
+import path from "path";
 import { Document } from "../models/Document";
 import { DocumentValidator } from "../services/validators/documentValidator";
 import { DuplicateValidator } from "../services/validators/duplicateValidator";
@@ -27,6 +28,12 @@ export class DocumentController {
         fileBuffer,
         req.file.mimetype,
         req.file.originalname,
+        {
+          originalName: req.file.originalname,
+          storedName: req.file.filename,
+          path: req.file.path,
+          mimeType: req.file.mimetype,
+        },
       );
 
       return res.status(201).json({
@@ -35,6 +42,9 @@ export class DocumentController {
       });
     } catch (error: any) {
       console.error("Upload/Process Error:", error);
+      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+        fs.unlinkSync(uploadedFilePath);
+      }
 
       return res.status(error.statusCode || 500).json({
         success: false,
@@ -43,10 +53,6 @@ export class DocumentController {
           error.message ||
           "Document processing failed. Please try again with another file.",
       });
-    } finally {
-      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
-        fs.unlinkSync(uploadedFilePath);
-      }
     }
   }
 
@@ -66,6 +72,50 @@ export class DocumentController {
         success: false,
         code: "DOCUMENT_FETCH_FAILED",
         message: "Failed to fetch documents.",
+      });
+    }
+  }
+
+  static async viewOriginal(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const document = await Document.findById(id);
+
+      if (!id || id === "undefined") {
+        return res.status(400).json({
+          success: false,
+          code: "INVALID_DOCUMENT_ID",
+          message: "Invalid document ID.",
+        });
+      }
+
+      if (!document || !document.originalFile?.path) {
+        return res.status(404).json({
+          success: false,
+          code: "ORIGINAL_FILE_NOT_FOUND",
+          message: "Original file is not available for this document.",
+        });
+      }
+
+      const absoluteFilePath = path.resolve(document.originalFile.path);
+
+      if (!fs.existsSync(absoluteFilePath)) {
+        return res.status(404).json({
+          success: false,
+          code: "ORIGINAL_FILE_MISSING",
+          message: "Original file is missing from storage.",
+        });
+      }
+
+      return res.sendFile(absoluteFilePath);
+    } catch (error: any) {
+      console.error("View Original File Error:", error);
+
+      return res.status(500).json({
+        success: false,
+        code: "ORIGINAL_FILE_OPEN_FAILED",
+        message: "Failed to open original file.",
       });
     }
   }
@@ -171,6 +221,14 @@ export class DocumentController {
           code: "DOCUMENT_NOT_FOUND",
           message: "Document not found.",
         });
+      }
+
+      if (deletedDoc.originalFile?.path) {
+        const absoluteFilePath = path.resolve(deletedDoc.originalFile.path);
+
+        if (fs.existsSync(absoluteFilePath)) {
+          fs.unlinkSync(absoluteFilePath);
+        }
       }
 
       return res.json({

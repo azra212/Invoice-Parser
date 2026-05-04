@@ -51,4 +51,6 @@ router.get("/", DocumentController.getDocuments);
 router.patch("/:id", DocumentController.updateDocument);
 router.delete("/:id", DocumentController.deleteDocument);
 
+router.get("/:id/original", DocumentController.viewOriginal);
+
 export default router;

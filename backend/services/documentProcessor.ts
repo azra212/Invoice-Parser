@@ -5,6 +5,7 @@ import {
   ExtractedData,
   ProcessedDocument,
   ValidationIssue,
+  OriginalFile,
 } from "../models/documentTypes";
 import { GeminiParser } from "./parsers/geminiParser";
 import { CsvParser } from "./parsers/csvParser";
@@ -19,6 +20,7 @@ export class DocumentProcessor {
     fileBuffer: Buffer,
     mimeType: string,
     fileName: string,
+    originalFile?: OriginalFile,
   ): Promise<ProcessedDocument> {
     // 1. Extraction
     // CSV and TXT use small deterministic parsers.
@@ -55,6 +57,8 @@ export class DocumentProcessor {
 
     const savedDocument = (await Document.create({
       fileName,
+      originalFile,
+
       documentType: extractedData.documentType,
       supplierName: extractedData.supplierName,
       documentNumber: extractedData.documentNumber,
