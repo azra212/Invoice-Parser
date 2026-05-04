@@ -21,7 +21,6 @@ import {
 import { ProcessedDocument } from "../backend/models/documentTypes";
 import { DocumentReviewModal } from "./components/DocumentReviewModal";
 
-// Component placeholders for now
 const Navbar = ({ onUploadClick }: { onUploadClick: () => void }) => (
   <Box px={8} py={4} borderBottom="1px solid" borderColor="gray.200" bg="white">
     <HStack justify="space-between">
@@ -126,11 +125,12 @@ const Stats = ({ docs }: { docs: ProcessedDocument[] }) => {
 };
 
 export default function App() {
-  const [documents, setDocuments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
 
   const [uploading, setUploading] = useState(false);
-  const [selectedDoc, setSelectedDoc] = useState<any | null>(null);
+  const [selectedDoc, setSelectedDoc] = useState<ProcessedDocument | null>(
+    null,
+  );
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);

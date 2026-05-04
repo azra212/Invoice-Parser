@@ -216,13 +216,7 @@ export function DocumentReviewModal({
           <Heading size="md">Review Document</Heading>
 
           <HStack gap={2}>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                console.log("View original file clicked", selectedDoc);
-              }}
-            >
+            <Button variant="ghost" size="sm" onClick={() => {}}>
               <ExternalLink size={16} />
               Original
             </Button>
@@ -403,7 +397,7 @@ export function DocumentReviewModal({
                   </Table.ColumnHeader>
                   <Table.ColumnHeader textAlign="right">
                     Actions
-                  </Table.ColumnHeader>{" "}
+                  </Table.ColumnHeader>
                 </Table.Row>
               </Table.Header>
 

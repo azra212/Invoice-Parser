@@ -1,4 +1,5 @@
-// This is the BLL. It is responsible for turning a raw file into a structured document object that can be stored in the database.
+// This is the BLL. It is responsible for turning a raw file into a structured document object that can be stored
+// in the database.
 
 import {
   ExtractedData,
@@ -28,10 +29,8 @@ export class DocumentProcessor {
 
     if (mimeType === "text/csv" || lowerFileName.endsWith(".csv")) {
       rawExtractedData = CsvParser.extractData(fileBuffer);
-      console.log("csv parser chosen");
     } else if (mimeType === "text/plain" || lowerFileName.endsWith(".txt")) {
       rawExtractedData = TxtParser.extractData(fileBuffer);
-      console.log("txt parser chosen");
     } else {
       rawExtractedData = await GeminiParser.extractData(
         fileBuffer,
