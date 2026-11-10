@@ -20,7 +20,8 @@
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck -w @invoice-parser/shared && npm run typecheck -w @invoice-parser/api && npm run typecheck -w @invoice-parser/web",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "eval": "tsx scripts/eval-extraction.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

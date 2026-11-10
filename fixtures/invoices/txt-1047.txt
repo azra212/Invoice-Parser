@@ -1,0 +1,15 @@
+Invoice TXT-1047
+
+Supplier: Northstar Digital Services Ltd.
+Invoice Number: TXT-1047
+Issue Date: 2025-03-14
+Due Date: 2025-04-13
+Currency: EUR
+
+Description | Qty | Unit Price | Amount
+Website maintenance - March | 12 | 45.00 | 540.00
+Cloud hosting package | 1 | 120.00 | 120.00
+
+Subtotal: 660.00
+Tax: 132.00
+Total: 792.00 EUR
