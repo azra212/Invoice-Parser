@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { extractedDataSchema, processedDocumentSchema } from "./document";
+import {
+  extractedDataSchema,
+  modelExtractionSchema,
+  processedDocumentSchema,
+} from "./document";
 
 const invoice = {
   documentType: "invoice",
@@ -53,5 +57,20 @@ describe("document schemas", () => {
     });
 
     expect(result.status).toBe("needs_review");
+  });
+
+  it("rejects a model confidence above 1", () => {
+    const result = modelExtractionSchema.safeParse({
+      ...invoice,
+      fieldConfidence: [{ field: "total", confidence: 1.4 }],
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("defaults missing model confidence to an empty list", () => {
+    const result = modelExtractionSchema.parse(invoice);
+
+    expect(result.fieldConfidence).toEqual([]);
   });
 });

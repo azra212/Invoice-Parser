@@ -1,14 +1,7 @@
-import type {
-  ExtractedData,
-  OriginalFile,
-  ProcessedDocument,
-} from "@invoice-parser/shared";
-import { GeminiParser } from "./parsers/geminiParser";
-import { CsvParser } from "./parsers/csvParser";
-import { TxtParser } from "./parsers/txtParser";
-import { DocumentValidator } from "./validators/documentValidator";
+import type { OriginalFile, ProcessedDocument } from "@invoice-parser/shared";
 import { Document } from "../models/Document";
-import { normalizeExtractedData } from "./normalizers/documentNormalizer";
+import { extractDocument } from "./extraction/extractDocument";
+import { DocumentValidator } from "./validators/documentValidator";
 import { DuplicateValidator } from "./validators/duplicateValidator";
 
 export class DocumentProcessor {
@@ -18,27 +11,10 @@ export class DocumentProcessor {
     fileName: string,
     originalFile?: OriginalFile,
   ): Promise<ProcessedDocument> {
-    // 1. Extraction
-    // CSV and TXT use small deterministic parsers.
-    // Gemini focused on PDFs/images.
-    const lowerFileName = fileName.toLowerCase();
-
-    let rawExtractedData: ExtractedData;
-
-    if (mimeType === "text/csv" || lowerFileName.endsWith(".csv")) {
-      rawExtractedData = CsvParser.extractData(fileBuffer);
-    } else if (mimeType === "text/plain" || lowerFileName.endsWith(".txt")) {
-      rawExtractedData = TxtParser.extractData(fileBuffer);
-    } else {
-      rawExtractedData = await GeminiParser.extractData(
-        fileBuffer,
-        mimeType,
-        fileName,
-      );
-    }
-
-    const extractedData = normalizeExtractedData(rawExtractedData);
-    // 2. Validation
+    const extraction = await extractDocument({
+      input: { fileBuffer, mimeType, fileName },
+    });
+    const extractedData = extraction.data;
     const validationIssues = [
       ...DocumentValidator.validate(extractedData),
       ...(await DuplicateValidator.validateDocumentNumber(
@@ -46,7 +22,6 @@ export class DocumentProcessor {
       )),
     ];
 
-    // 3. Status logic
     const status = validationIssues.some((i) => i.severity === "error")
       ? "needs_review"
       : "uploaded";
@@ -65,6 +40,8 @@ export class DocumentProcessor {
       subtotal: extractedData.subtotal,
       tax: extractedData.tax,
       total: extractedData.total,
+      fieldConfidence: extraction.fieldConfidence,
+      rawExtraction: extraction.rawExtraction,
       validationIssues,
       status,
     })) as unknown as ProcessedDocument;
