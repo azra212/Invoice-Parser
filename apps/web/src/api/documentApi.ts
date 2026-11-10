@@ -68,6 +68,19 @@ export async function updateDocument(
   return data.data;
 }
 
+export async function reprocessDocument(id: string) {
+  const res = await fetch(`/api/documents/${id}/reprocess`, {
+    method: "POST",
+  });
+  const data: ApiResponse<ProcessedDocument> = await res.json();
+
+  if (!res.ok || !data.success || !data.data) {
+    throw new Error(getApiErrorMessage(data, "Failed to reprocess document."));
+  }
+
+  return data.data;
+}
+
 export async function deleteDocument(id: string) {
   const res = await fetch(`/api/documents/${id}`, {
     method: "DELETE",

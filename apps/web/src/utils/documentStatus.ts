@@ -21,9 +21,11 @@ export function getWarningCount(doc: ProcessedDocument) {
 export function getStatusColor(status: ProcessedDocument["status"]) {
   const colors: Record<ProcessedDocument["status"], string> = {
     uploaded: "gray",
+    processing: "blue",
     needs_review: "orange",
     validated: "green",
     rejected: "red",
+    failed: "red",
   };
 
   return colors[status];

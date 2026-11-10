@@ -12,6 +12,10 @@ import path from "path";
 import { fileURLToPath, pathToFileURL } from "url";
 import { allowedOrigins, parseEnv, type Env } from "./config/env";
 import documentRoutes from "./routes/documentRoutes";
+import { processStoredDocument } from "./services/documentProcessor";
+import { createQueue } from "./services/queue/createQueue";
+import { configureRuntime } from "./services/runtime";
+import { createStorage } from "./services/storage/createStorage";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 
@@ -81,6 +85,11 @@ export async function start() {
 
   await mongoose.connect(env.MONGO_URI);
   console.log("MongoDB connected");
+
+  const storage = createStorage(env);
+  const queue = createQueue(env);
+  configureRuntime({ storage, queue });
+  queue.start((job) => processStoredDocument(job.documentId, job.attempt));
 
   const app = createApp(env);
   app.listen(env.PORT, "0.0.0.0", () => {

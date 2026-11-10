@@ -40,6 +40,14 @@ export const envSchema = z.object({
     (value) => value ?? "http://localhost:5173",
   ),
   WEB_DIST_PATH: optionalText,
+  REDIS_URL: optionalText,
+  UPLOAD_DIR: optionalText,
+  S3_BUCKET: optionalText,
+  S3_REGION: optionalText.transform((value) => value ?? "us-east-1"),
+  S3_ENDPOINT: optionalText,
+  S3_ACCESS_KEY_ID: optionalText,
+  S3_SECRET_ACCESS_KEY: optionalText,
+  S3_FORCE_PATH_STYLE: optionalText.transform((value) => value === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;

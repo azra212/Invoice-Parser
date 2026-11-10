@@ -25,6 +25,7 @@ interface DocumentReviewModalProps {
   onClose: () => void;
   updateDoc: (id: string, updates: Partial<ProcessedDocument>) => Promise<void>;
   deleteDoc: (id: string) => void;
+  reprocessDoc: (id: string) => Promise<void>;
   actionError: string | null;
 }
 
@@ -96,6 +97,7 @@ export function DocumentReviewModal({
   onClose,
   updateDoc,
   deleteDoc,
+  reprocessDoc,
   actionError,
 }: DocumentReviewModalProps) {
   const [editForm, setEditForm] = useState<EditableDocumentFields>(() =>
@@ -332,6 +334,7 @@ export function DocumentReviewModal({
             updateDoc(requireDocumentId(), { status: "rejected" })
           }
           onDelete={() => deleteDoc(requireDocumentId())}
+          onReprocess={() => reprocessDoc(requireDocumentId())}
           hasUnsavedChanges={hasUnsavedChanges}
         />
       </VStack>

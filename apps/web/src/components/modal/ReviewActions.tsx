@@ -7,6 +7,7 @@ interface ReviewActionsProps {
   onValidate: () => void;
   onReject: () => void;
   onDelete: () => void;
+  onReprocess: () => void;
   hasUnsavedChanges: boolean;
 }
 
@@ -16,6 +17,7 @@ export function ReviewActions({
   onValidate,
   onReject,
   onDelete,
+  onReprocess,
   hasUnsavedChanges,
 }: ReviewActionsProps) {
   return (
@@ -25,7 +27,7 @@ export function ReviewActions({
           Save corrections before confirming validation
         </Text>
       )}
-      <SimpleGrid columns={4} gap={3} pt={4}>
+      <SimpleGrid columns={{ base: 2, md: 5 }} gap={3} pt={4}>
         <Button w="full" colorPalette="green" loading={saving} onClick={onSave}>
           <Save size={16} />
           Save Corrections
@@ -49,6 +51,10 @@ export function ReviewActions({
         >
           <XCircle size={16} />
           Reject
+        </Button>
+
+        <Button w="full" variant="outline" onClick={onReprocess}>
+          Reprocess
         </Button>
 
         <Button w="full" variant="ghost" colorPalette="red" onClick={onDelete}>

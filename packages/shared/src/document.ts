@@ -4,9 +4,11 @@ export const documentTypeSchema = z.enum(["invoice", "purchase_order"]);
 
 export const documentStatusSchema = z.enum([
   "uploaded",
+  "processing",
   "needs_review",
   "validated",
   "rejected",
+  "failed",
 ]);
 
 export const validationSeveritySchema = z.enum(["error", "warning"]);
@@ -44,6 +46,7 @@ export const originalFileSchema = z.object({
   storedName: z.string(),
   path: z.string(),
   mimeType: z.string(),
+  storageKey: z.string().optional(),
 });
 
 export const fieldConfidenceEntrySchema = z.object({
@@ -73,6 +76,7 @@ export const processedDocumentSchema = extractedDataSchema.extend({
   status: documentStatusSchema,
   validationIssues: z.array(validationIssueSchema),
   fileName: z.string(),
+  processingAttempt: z.number().int().nonnegative().optional(),
   originalFile: originalFileSchema.optional(),
   fieldConfidence: fieldConfidenceSchema.optional(),
   rawExtraction: rawExtractionSchema.optional(),
