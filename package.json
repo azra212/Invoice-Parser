@@ -3,6 +3,10 @@
   "private": true,
   "version": "1.0.0",
   "description": "Upload invoices and purchase orders, extract structured data, validate it, and review it.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/azra212/Invoice-Parser.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=22"
