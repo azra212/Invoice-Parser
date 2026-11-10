@@ -1,27 +1,12 @@
-import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
 import { Router } from "express";
 import multer from "multer";
 import { DocumentController } from "../controllers/documentController";
 
 const router = Router();
 
-const uploadDir = path.resolve(
-  fileURLToPath(new URL("../../uploads", import.meta.url)),
-);
-
-fs.mkdirSync(uploadDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: uploadDir,
-  filename: (_req, file, callback) => {
-    callback(null, `${Date.now()}-${path.basename(file.originalname)}`);
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024,
   },
@@ -58,6 +43,9 @@ router.post("/upload", (req, res) => {
 
 router.get("/", (req, res) => {
   void DocumentController.getDocuments(req, res);
+});
+router.post("/:id/reprocess", (req, res) => {
+  void DocumentController.reprocessDocument(req, res);
 });
 router.patch("/:id", (req, res) => {
   void DocumentController.updateDocument(req, res);

@@ -23,6 +23,7 @@ const originalFileSchema = new mongoose.Schema(
     storedName: String,
     path: String,
     mimeType: String,
+    storageKey: String,
   },
   { _id: false },
 );
@@ -70,9 +71,21 @@ const documentSchema = new mongoose.Schema(
       ),
     },
 
+    processingAttempt: {
+      type: Number,
+      default: 0,
+    },
+
     status: {
       type: String,
-      enum: ["uploaded", "needs_review", "validated", "rejected"],
+      enum: [
+        "uploaded",
+        "processing",
+        "needs_review",
+        "validated",
+        "rejected",
+        "failed",
+      ],
       default: "uploaded",
     },
   },

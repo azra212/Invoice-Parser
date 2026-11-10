@@ -10,13 +10,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1165.0",
     "@google/genai": "^1.29.0",
     "@invoice-parser/shared": "*",
+    "bullmq": "^6.7.3",
     "cors": "^2.8.6",
     "csv-parse": "^6.2.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.4.2",
     "express": "^4.21.2",
+    "ioredis": "^6.0.0",
     "mongoose": "^9.6.0",
     "multer": "^2.1.1",
     "zod": "^4.1.12"

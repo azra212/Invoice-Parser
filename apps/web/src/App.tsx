@@ -1,5 +1,5 @@
 import { ChakraProvider, defaultSystem } from "@chakra-ui/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Container,
@@ -19,6 +19,7 @@ import {
   uploadDocument,
   updateDocument,
   deleteDocument,
+  reprocessDocument,
 } from "./api/documentApi";
 import { Navbar } from "./components/Navbar";
 import { StatsCards } from "./components/StatsCards";
@@ -40,15 +41,20 @@ export default function App() {
     document.getElementById("file-upload")?.click();
   };
 
-  const fetchDocs = async () => {
+  const fetchDocs = useCallback(async () => {
     try {
       const docs = await fetchDocuments();
       setDocuments(docs);
+      setSelectedDoc((current) => {
+        if (!current) return current;
+        const id = current._id ?? current.id;
+        return docs.find((doc) => (doc._id ?? doc.id) === id) ?? current;
+      });
     } catch (error) {
       console.error("Failed to fetch documents:", error);
       setDocuments([]);
     }
-  };
+  }, []);
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -133,9 +139,38 @@ export default function App() {
     }
   };
 
+  const waitingForProcessing = documents.some(
+    (doc) => doc.status === "uploaded" || doc.status === "processing",
+  );
+
+  const reprocessDoc = async (id: string) => {
+    try {
+      setActionError(null);
+      const updated = await reprocessDocument(id);
+      setDocuments((prev) =>
+        prev.map((doc) => ((doc._id ?? doc.id) === id ? updated : doc)),
+      );
+      setSelectedDoc(updated);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "Could not reprocess the document.",
+      );
+    }
+  };
+
   useEffect(() => {
-    fetchDocs();
-  }, []);
+    void fetchDocs();
+  }, [fetchDocs]);
+
+  useEffect(() => {
+    if (!waitingForProcessing) return;
+    const timer = window.setInterval(() => {
+      void fetchDocs();
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [waitingForProcessing, fetchDocs]);
 
   return (
     <ChakraProvider value={defaultSystem}>
@@ -240,6 +275,7 @@ export default function App() {
             }}
             updateDoc={updateDoc}
             deleteDoc={deleteDoc}
+            reprocessDoc={reprocessDoc}
             actionError={actionError}
           />
         )}
