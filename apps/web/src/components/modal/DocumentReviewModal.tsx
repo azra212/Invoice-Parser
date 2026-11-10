@@ -222,7 +222,7 @@ export function DocumentReviewModal({
               disabled={!selectedDoc.originalFile}
               onClick={() => {
                 window.open(
-                  `/api/documents/${requireDocumentId()}/original`,
+                  `/api/v1/documents/${requireDocumentId()}/original`,
                   "_blank",
                 );
               }}
