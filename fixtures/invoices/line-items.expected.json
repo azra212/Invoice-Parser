@@ -1,0 +1,25 @@
+{
+  "documentType": null,
+  "supplierName": null,
+  "documentNumber": null,
+  "issueDate": null,
+  "dueDate": null,
+  "currency": null,
+  "lineItems": [
+    {
+      "description": "Hosting",
+      "quantity": 2,
+      "unitPrice": 50,
+      "amount": 100
+    },
+    {
+      "description": "Support",
+      "quantity": 1,
+      "unitPrice": 25,
+      "amount": 25
+    }
+  ],
+  "subtotal": null,
+  "tax": null,
+  "total": null
+}

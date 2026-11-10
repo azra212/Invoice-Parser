@@ -1,0 +1,25 @@
+{
+  "documentType": "invoice",
+  "supplierName": "Northstar Digital Services Ltd.",
+  "documentNumber": "TXT-1047",
+  "issueDate": "2025-03-14",
+  "dueDate": "2025-04-13",
+  "currency": "EUR",
+  "lineItems": [
+    {
+      "description": "Website maintenance - March",
+      "quantity": 12,
+      "unitPrice": 45,
+      "amount": 540
+    },
+    {
+      "description": "Cloud hosting package",
+      "quantity": 1,
+      "unitPrice": 120,
+      "amount": 120
+    }
+  ],
+  "subtotal": 660,
+  "tax": 132,
+  "total": 792
+}
