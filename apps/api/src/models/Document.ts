@@ -14,6 +14,7 @@ const validationIssueSchema = new mongoose.Schema({
     type: String,
     enum: ["error", "warning"],
   },
+  code: String,
 });
 
 const originalFileSchema = new mongoose.Schema(

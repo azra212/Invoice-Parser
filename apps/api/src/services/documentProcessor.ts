@@ -1,8 +1,8 @@
 import type { OriginalFile, ProcessedDocument } from "@invoice-parser/shared";
 import { Document } from "../models/Document";
 import { extractDocument } from "./extraction/extractDocument";
-import { DocumentValidator } from "./validators/documentValidator";
-import { DuplicateValidator } from "./validators/duplicateValidator";
+import { mongoDuplicateLookup } from "./validation/duplicateLookup";
+import { statusForIssues, validateDocument } from "./validation/engine";
 
 export class DocumentProcessor {
   static async process(
@@ -15,16 +15,11 @@ export class DocumentProcessor {
       input: { fileBuffer, mimeType, fileName },
     });
     const extractedData = extraction.data;
-    const validationIssues = [
-      ...DocumentValidator.validate(extractedData),
-      ...(await DuplicateValidator.validateDocumentNumber(
-        extractedData.documentNumber,
-      )),
-    ];
+    const validationIssues = await validateDocument(extractedData, {
+      findDuplicate: mongoDuplicateLookup(),
+    });
 
-    const status = validationIssues.some((i) => i.severity === "error")
-      ? "needs_review"
-      : "uploaded";
+    const status = statusForIssues(validationIssues);
 
     const savedDocument = (await Document.create({
       fileName,
