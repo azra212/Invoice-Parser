@@ -45,6 +45,27 @@ export const originalFileSchema = z.object({
   mimeType: z.string(),
 });
 
+export const fieldConfidenceEntrySchema = z.object({
+  field: z.string().min(1),
+  confidence: z.number().min(0).max(1),
+});
+
+export const fieldConfidenceSchema = z.record(
+  z.string(),
+  z.number().min(0).max(1),
+);
+
+export const modelExtractionSchema = extractedDataSchema.extend({
+  fieldConfidence: z.array(fieldConfidenceEntrySchema).default([]),
+});
+
+export const rawExtractionSchema = z.object({
+  provider: z.string(),
+  model: z.string().nullable(),
+  output: z.unknown(),
+  receivedAt: z.string(),
+});
+
 export const processedDocumentSchema = extractedDataSchema.extend({
   id: z.string().optional(),
   _id: z.string().optional(),
@@ -52,6 +73,8 @@ export const processedDocumentSchema = extractedDataSchema.extend({
   validationIssues: z.array(validationIssueSchema),
   fileName: z.string(),
   originalFile: originalFileSchema.optional(),
+  fieldConfidence: fieldConfidenceSchema.optional(),
+  rawExtraction: rawExtractionSchema.optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -63,4 +86,7 @@ export type LineItem = z.infer<typeof lineItemSchema>;
 export type ExtractedData = z.infer<typeof extractedDataSchema>;
 export type ValidationIssue = z.infer<typeof validationIssueSchema>;
 export type OriginalFile = z.infer<typeof originalFileSchema>;
+export type FieldConfidenceEntry = z.infer<typeof fieldConfidenceEntrySchema>;
+export type ModelExtraction = z.infer<typeof modelExtractionSchema>;
+export type RawExtraction = z.infer<typeof rawExtractionSchema>;
 export type ProcessedDocument = z.infer<typeof processedDocumentSchema>;

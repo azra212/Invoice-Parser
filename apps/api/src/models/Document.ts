@@ -53,6 +53,22 @@ const documentSchema = new mongoose.Schema(
 
     validationIssues: [validationIssueSchema],
 
+    fieldConfidence: {
+      type: mongoose.Schema.Types.Mixed,
+    },
+
+    rawExtraction: {
+      type: new mongoose.Schema(
+        {
+          provider: String,
+          model: String,
+          output: mongoose.Schema.Types.Mixed,
+          receivedAt: String,
+        },
+        { _id: false },
+      ),
+    },
+
     status: {
       type: String,
       enum: ["uploaded", "needs_review", "validated", "rejected"],
