@@ -1,0 +1,22 @@
+{
+  "name": "@invoice-parser/shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Document contracts shared by the invoice parser API and web app.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.2"
+  }
+}
