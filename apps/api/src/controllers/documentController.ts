@@ -3,8 +3,12 @@ import { DocumentProcessor } from "../services/documentProcessor";
 import fs from "fs";
 import path from "path";
 import { Document } from "../models/Document";
-import { DocumentValidator } from "../services/validators/documentValidator";
-import { DuplicateValidator } from "../services/validators/duplicateValidator";
+import type { ExtractedData } from "@invoice-parser/shared";
+import { mongoDuplicateLookup } from "../services/validation/duplicateLookup";
+import {
+  statusForIssues,
+  validateDocument,
+} from "../services/validation/engine";
 
 export class DocumentController {
   static async uploadDocument(req: Request, res: Response) {
@@ -148,22 +152,15 @@ export class DocumentController {
 
       delete (dataForValidation as any).status;
 
-      const validationIssues = [
-        ...DocumentValidator.validate(dataForValidation),
-        ...(await DuplicateValidator.validateDocumentNumber(
-          dataForValidation.documentNumber,
-          id,
-        )),
-      ];
-      const hasErrors = validationIssues.some((i) => i.severity === "error");
+      const validationIssues = await validateDocument(
+        dataForValidation as ExtractedData,
+        {
+          currentDocumentId: id,
+          findDuplicate: mongoDuplicateLookup(),
+        },
+      );
 
-      let finalStatus;
-
-      if (updates.status) {
-        finalStatus = updates.status;
-      } else {
-        finalStatus = hasErrors ? "needs_review" : "validated";
-      }
+      const finalStatus = updates.status ?? statusForIssues(validationIssues);
 
       existingDoc.set({
         ...updates,

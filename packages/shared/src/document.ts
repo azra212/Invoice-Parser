@@ -36,6 +36,7 @@ export const validationIssueSchema = z.object({
   field: z.string(),
   message: z.string(),
   severity: validationSeveritySchema,
+  code: z.string().min(1),
 });
 
 export const originalFileSchema = z.object({

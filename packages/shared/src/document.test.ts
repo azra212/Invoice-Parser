@@ -49,6 +49,7 @@ describe("document schemas", () => {
           field: "total",
           message: "Total does not match subtotal plus tax.",
           severity: "error",
+          code: "totals.total",
         },
       ],
       fileName: "Invoice TXT-1047.txt",
