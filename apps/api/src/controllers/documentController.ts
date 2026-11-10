@@ -1,9 +1,15 @@
-import type { Request, Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import { Document } from "../models/Document";
 import { getQueue, getStorage } from "../services/runtime";
 import type { ExtractedData } from "@invoice-parser/shared";
+import {
+  documentIdSchema,
+  listDocumentsQuerySchema,
+  parseInput,
+  updateDocumentSchema,
+} from "../http/schemas";
 import { mongoDuplicateLookup } from "../services/validation/duplicateLookup";
 import {
   statusForIssues,
@@ -11,7 +17,7 @@ import {
 } from "../services/validation/engine";
 
 export class DocumentController {
-  static async uploadDocument(req: Request, res: Response) {
+  static async uploadDocument(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.file?.buffer) {
         return res.status(400).json({
@@ -51,48 +57,51 @@ export class DocumentController {
         success: true,
         data: created,
       });
-    } catch (error: any) {
-      console.error("Upload Error:", error);
-      return res.status(error.statusCode || 500).json({
-        success: false,
-        code: error.code || "DOCUMENT_UPLOAD_FAILED",
-        message: error.message || "Document upload failed. Please try again.",
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  static async getDocuments(_req: Request, res: Response) {
+  static async getDocuments(req: Request, res: Response, next: NextFunction) {
     try {
-      const documents = await Document.find().sort({ createdAt: -1 });
+      const query = parseInput(listDocumentsQuerySchema, req.query);
+      const filter: Record<string, unknown> = {};
+      if (query.status) filter.status = query.status;
+      if (query.q) {
+        const pattern = new RegExp(escapeRegex(query.q), "i");
+        filter.$or = [
+          { supplierName: pattern },
+          { documentNumber: pattern },
+          { fileName: pattern },
+        ];
+      }
+
+      const skip = (query.page - 1) * query.limit;
+      const [documents, total] = await Promise.all([
+        Document.find(filter)
+          .sort({ createdAt: -1 })
+          .skip(skip)
+          .limit(query.limit),
+        Document.countDocuments(filter),
+      ]);
 
       return res.json({
         success: true,
         data: documents,
+        page: query.page,
+        limit: query.limit,
+        total,
       });
     } catch (error) {
-      console.error("Fetch Documents Error:", error);
-
-      return res.status(500).json({
-        success: false,
-        code: "DOCUMENT_FETCH_FAILED",
-        message: "Failed to fetch documents.",
-      });
+      next(error);
     }
   }
 
-  static async viewOriginal(req: Request, res: Response) {
+  static async viewOriginal(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
+      const { id } = parseInput(documentIdSchema, req.params);
 
       const document = await Document.findById(id);
-
-      if (!id || id === "undefined") {
-        return res.status(400).json({
-          success: false,
-          code: "INVALID_DOCUMENT_ID",
-          message: "Invalid document ID.",
-        });
-      }
 
       const storageKey =
         document?.originalFile?.storageKey || document?.originalFile?.path;
@@ -126,29 +135,15 @@ export class DocumentController {
         code: "ORIGINAL_FILE_MISSING",
         message: "Original file is missing from storage.",
       });
-    } catch (error: any) {
-      console.error("View Original File Error:", error);
-
-      return res.status(500).json({
-        success: false,
-        code: "ORIGINAL_FILE_OPEN_FAILED",
-        message: "Failed to open original file.",
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  static async updateDocument(req: Request, res: Response) {
+  static async updateDocument(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-      const updates = req.body;
-
-      if (!id || id === "undefined") {
-        return res.status(400).json({
-          success: false,
-          code: "INVALID_DOCUMENT_ID",
-          message: "Invalid document ID.",
-        });
-      }
+      const { id } = parseInput(documentIdSchema, req.params);
+      const updates = parseInput(updateDocumentSchema, req.body);
 
       const existingDoc = await Document.findById(id);
 
@@ -189,27 +184,18 @@ export class DocumentController {
         success: true,
         data: savedDoc,
       });
-    } catch (error: any) {
-      console.error("Update Document Error:", error);
-
-      return res.status(500).json({
-        success: false,
-        code: "DOCUMENT_UPDATE_FAILED",
-        message: "Failed to update document.",
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  static async reprocessDocument(req: Request, res: Response) {
+  static async reprocessDocument(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const { id } = req.params;
-      if (!id || id === "undefined") {
-        return res.status(400).json({
-          success: false,
-          code: "INVALID_DOCUMENT_ID",
-          message: "Invalid document ID.",
-        });
-      }
+      const { id } = parseInput(documentIdSchema, req.params);
 
       const document = await Document.findById(id);
       if (!document) {
@@ -231,27 +217,14 @@ export class DocumentController {
       await getQueue().enqueue({ documentId: id, attempt });
 
       return res.status(202).json({ success: true, data: document });
-    } catch (error: any) {
-      console.error("Reprocess Document Error:", error);
-      return res.status(500).json({
-        success: false,
-        code: "DOCUMENT_REPROCESS_FAILED",
-        message: "Failed to reprocess document.",
-      });
+    } catch (error) {
+      next(error);
     }
   }
 
-  static async deleteDocument(req: Request, res: Response) {
+  static async deleteDocument(req: Request, res: Response, next: NextFunction) {
     try {
-      const { id } = req.params;
-
-      if (!id || id === "undefined") {
-        return res.status(400).json({
-          success: false,
-          code: "INVALID_DOCUMENT_ID",
-          message: "Invalid document ID.",
-        });
-      }
+      const { id } = parseInput(documentIdSchema, req.params);
 
       const deletedDoc = await Document.findByIdAndDelete(id);
 
@@ -277,14 +250,12 @@ export class DocumentController {
         success: true,
         data: deletedDoc,
       });
-    } catch (error: any) {
-      console.error("Delete Document Error:", error);
-
-      return res.status(500).json({
-        success: false,
-        code: "DOCUMENT_DELETE_FAILED",
-        message: "Failed to delete document.",
-      });
+    } catch (error) {
+      next(error);
     }
   }
+}
+
+function escapeRegex(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
