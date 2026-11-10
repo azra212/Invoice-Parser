@@ -53,7 +53,9 @@ export async function processStoredDocument(
       },
     });
     const validationIssues = await validateDocument(extraction.data, {
-      findDuplicate: mongoDuplicateLookup(),
+      findDuplicate: mongoDuplicateLookup(
+        existing.organizationId ? String(existing.organizationId) : undefined,
+      ),
       currentDocumentId: documentId,
     });
 

@@ -21,7 +21,9 @@ import {
   deleteDocument,
   reprocessDocument,
 } from "./api/documentApi";
+import { AuthScreen } from "./components/AuthScreen";
 import { Navbar } from "./components/Navbar";
+import { currentUser, logoutAccount, type SessionUser } from "./api/authApi";
 import { StatsCards } from "./components/StatsCards";
 import { EmptyDocumentsState } from "./components/EmptyDocumentsState";
 import { DocumentTable } from "./components/DocumentTable";
@@ -36,6 +38,8 @@ export default function App() {
 
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
+  const [authReady, setAuthReady] = useState(false);
 
   const openFileUpload = () => {
     document.getElementById("file-upload")?.click();
@@ -161,8 +165,15 @@ export default function App() {
   };
 
   useEffect(() => {
+    void currentUser()
+      .then(setUser)
+      .finally(() => setAuthReady(true));
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
     void fetchDocs();
-  }, [fetchDocs]);
+  }, [fetchDocs, user]);
 
   useEffect(() => {
     if (!waitingForProcessing) return;
@@ -171,6 +182,18 @@ export default function App() {
     }, 2000);
     return () => window.clearInterval(timer);
   }, [waitingForProcessing, fetchDocs]);
+
+  if (!authReady) {
+    return null;
+  }
+
+  if (!user) {
+    return (
+      <ChakraProvider value={defaultSystem}>
+        <AuthScreen onSuccess={setUser} />
+      </ChakraProvider>
+    );
+  }
 
   return (
     <ChakraProvider value={defaultSystem}>
@@ -182,7 +205,17 @@ export default function App() {
           onChange={handleUpload}
           accept=".pdf,.png,.jpg,.jpeg,.csv,.txt"
         />
-        <Navbar onUploadClick={openFileUpload} />
+        <Navbar
+          onUploadClick={openFileUpload}
+          email={user.email}
+          onLogout={() => {
+            void logoutAccount().finally(() => {
+              setUser(null);
+              setDocuments([]);
+              setSelectedDoc(null);
+            });
+          }}
+        />
         <Container maxW="6xl" py={8}>
           <VStack gap={8} align="start">
             <Box w="full">

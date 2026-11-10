@@ -31,6 +31,10 @@ const originalFileSchema = new mongoose.Schema(
 const documentSchema = new mongoose.Schema(
   {
     fileName: String,
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
     originalFile: originalFileSchema,
 
     documentType: {

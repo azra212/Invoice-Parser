@@ -1,11 +1,13 @@
-import { Box, Button, Heading, HStack } from "@chakra-ui/react";
+import { Box, Button, Heading, HStack, Text } from "@chakra-ui/react";
 import { ClipboardList } from "lucide-react";
 
 interface NavbarProps {
   onUploadClick: () => void;
+  email?: string;
+  onLogout: () => void;
 }
 
-export function Navbar({ onUploadClick }: NavbarProps) {
+export function Navbar({ onUploadClick, email, onLogout }: NavbarProps) {
   return (
     <Box
       px={8}
@@ -25,6 +27,14 @@ export function Navbar({ onUploadClick }: NavbarProps) {
         </HStack>
 
         <HStack gap={4}>
+          {email && (
+            <Text fontSize="sm" color="gray.600">
+              {email}
+            </Text>
+          )}
+          <Button size="sm" variant="ghost" onClick={onLogout}>
+            Sign out
+          </Button>
           <Button size="sm" colorPalette="blue" onClick={onUploadClick}>
             New Upload
           </Button>

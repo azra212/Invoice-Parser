@@ -9,12 +9,16 @@ type ApiResponse<T> = {
   };
 };
 
+function request(path: string, init: RequestInit = {}) {
+  return fetch(path, { ...init, credentials: "include" });
+}
+
 function getApiErrorMessage(data: ApiResponse<unknown>, fallback: string) {
   return data.message || data.error?.message || fallback;
 }
 
 export async function fetchDocuments() {
-  const res = await fetch("/api/v1/documents?limit=100");
+  const res = await request("/api/v1/documents?limit=100");
   const data: ApiResponse<ProcessedDocument[]> = await res.json();
 
   if (!res.ok || !data.success || !data.data) {
@@ -28,7 +32,7 @@ export async function uploadDocument(file: File) {
   const formData = new FormData();
   formData.append("file", file);
 
-  const res = await fetch("/api/v1/documents/upload", {
+  const res = await request("/api/v1/documents/upload", {
     method: "POST",
     body: formData,
   });
@@ -51,7 +55,7 @@ export async function updateDocument(
   id: string,
   updates: Partial<ProcessedDocument>,
 ) {
-  const res = await fetch(`/api/v1/documents/${id}`, {
+  const res = await request(`/api/v1/documents/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -69,7 +73,7 @@ export async function updateDocument(
 }
 
 export async function reprocessDocument(id: string) {
-  const res = await fetch(`/api/v1/documents/${id}/reprocess`, {
+  const res = await request(`/api/v1/documents/${id}/reprocess`, {
     method: "POST",
   });
   const data: ApiResponse<ProcessedDocument> = await res.json();
@@ -82,7 +86,7 @@ export async function reprocessDocument(id: string) {
 }
 
 export async function deleteDocument(id: string) {
-  const res = await fetch(`/api/v1/documents/${id}`, {
+  const res = await request(`/api/v1/documents/${id}`, {
     method: "DELETE",
   });
 

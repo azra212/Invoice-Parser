@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { type Express, type Request, type Response } from "express";
@@ -11,7 +12,9 @@ import { toErrorResponse } from "./http/errors";
 import { healthReport } from "./http/health";
 import { logger, requestLogger } from "./http/logger";
 import { apiLimiter } from "./http/rateLimits";
+import { requireAuth } from "./http/requireAuth";
 import { buildOpenApi } from "./openapi/buildOpenApi";
+import { createAuthRouter } from "./routes/authRoutes";
 import documentRoutes from "./routes/documentRoutes";
 import { processStoredDocument } from "./services/documentProcessor";
 import { createQueue } from "./services/queue/createQueue";
@@ -42,8 +45,17 @@ export function createApp(env: Env): Express {
       credentials: true,
     }),
   );
+  app.use(cookieParser());
   app.use(express.json({ limit: "1mb" }));
   app.use("/api", apiLimiter);
+
+  const authRouter = createAuthRouter({
+    jwtSecret: env.JWT_SECRET,
+    secureCookies: env.NODE_ENV === "production",
+  });
+  const authenticate = requireAuth(env.JWT_SECRET);
+  app.use("/api/v1/auth", authRouter);
+  app.use("/api/auth", authRouter);
 
   const health = async (_req: Request, res: Response) => {
     const report = await healthReport(env);
@@ -59,8 +71,8 @@ export function createApp(env: Env): Express {
     res.json(buildOpenApi());
   });
 
-  app.use("/api/v1/documents", documentRoutes);
-  app.use("/api/documents", documentRoutes);
+  app.use("/api/v1/documents", authenticate, documentRoutes);
+  app.use("/api/documents", authenticate, documentRoutes);
 
   if (env.NODE_ENV === "production") {
     const webDist = env.WEB_DIST_PATH
