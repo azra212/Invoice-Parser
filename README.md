@@ -1,200 +1,116 @@
-# Smart Document Processing System
+# Invoice Parser
 
-A full-stack app for uploading, extracting, validating, reviewing, and managing business documents such as invoices and purchase orders.
+Upload an invoice or purchase order. The app extracts the fields, checks the numbers, and holds the document for a person when something does not add up.
+
+PDF and images go through Gemini. CSV and TXT are parsed in code. Validation never trusts the model: totals, dates, line math, duplicates, and VAT rates are checked by rules. A reviewer confirms or rejects the result. Each organisation only sees its own documents.
 
 **Live demo:** https://invoice-parser-9xqd.onrender.com/
 
-> Note: The app is hosted on Render’s free tier, so the first request may take a little while if the server has been idle.
+The demo is on Render's free tier, so the first request after idle can be slow. It may lag this repository until it is redeployed. See [docs/deploy.md](docs/deploy.md).
 
-The code is an npm workspace (`apps/web`, `apps/api`, `packages/shared`). [PLAN.md](PLAN.md) describes the upgrade in progress.
+## Problem
 
-## Tech Stack
+Accounts teams still retype invoices. A model can read the page, but it will invent a total or miss a digit. This app keeps the model in the extraction step and puts the decision in deterministic checks plus a person.
 
-- React + Vite
-- Chakra UI
-- Node.js + Express
-- TypeScript
-- MongoDB + Mongoose
-- Google Gemini
+## Architecture
 
-## What It Does
+```mermaid
+flowchart LR
+  web[Web]
+  api[API]
+  queue[Queue]
+  worker[Worker]
+  files[File storage]
+  mongo[(MongoDB)]
+  redis[(Redis)]
+  gemini[Gemini]
+  rules[Validation rules]
 
-The app supports document ingestion, extraction, validation, review, and persistence.
-
-Supported file types:
-
-- PDF
-- PNG / JPG / JPEG
-- CSV
-- TXT
-
-Processing flow:
-
-```txt
-Upload → Extract → Normalize → Validate → Store → Review
+  web -->|HTTPS| api
+  api --> files
+  api --> mongo
+  api --> queue
+  queue --> redis
+  queue --> worker
+  worker --> files
+  worker --> gemini
+  worker --> rules
+  worker --> mongo
 ```
 
-## Core Features
+Without `REDIS_URL`, the queue is in-process. With `S3_BUCKET`, files go to S3-compatible storage instead of local disk. The web app in Compose is nginx and proxies `/api` to the API. `npm start` can also serve the built UI from the API for a single host.
 
-- Upload invoices and purchase orders
-- Extract document type, supplier, document number, dates, currency, line items, subtotal, tax, and total
-- Validate required fields, dates, totals, line item calculations, and duplicate document numbers
-- Highlight validation issues in the review interface
-- Edit extracted data manually and re-run validation
-- Confirm, reject, or delete documents
-- Store processed documents in MongoDB
-- View previously processed documents in the dashboard
-- Display document statuses and detected issues
+## Pipeline
 
-## Extracted Data
+1. Upload stores the file and returns immediately with status `uploaded`.
+2. A job sets `processing`, picks a provider, and asks for structured JSON.
+3. The payload is normalized and parsed with Zod. Invalid model output is rejected.
+4. Rules check required fields, dates, line math, totals, duplicates, and VAT.
+5. No errors becomes `validated`. Any error becomes `needs_review`. A thrown failure becomes `failed`.
+6. A reviewer edits, confirms, or rejects. That action is stored in the audit log.
 
-- Document type
-- Supplier/company name
-- Document number
-- Issue date
-- Due date
-- Currency
-- Line items
-- Subtotal
-- Tax
-- Total
+Statuses: `uploaded`, `processing`, `needs_review`, `validated`, `rejected`, `failed`.
 
-Example extracted JSON object:
+## Decisions
 
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "_id": "69f8b939d783b886c78ad261",
-      "fileName": "Invoice TXT-1047.txt",
-      "originalFile": {
-        "originalName": "Invoice TXT-1047.txt",
-        "storedName": "1777908025339-Invoice TXT-1047.txt",
-        "path": "backend\\uploads\\1777908025339-Invoice TXT-1047.txt",
-        "mimeType": "text/plain"
-      },
-      "documentType": "invoice",
-      "supplierName": "Northstar Digital Services Ltd.",
-      "documentNumber": "TXT-1047",
-      "issueDate": "2025-03-14",
-      "dueDate": "2025-04-13",
-      "currency": "EUR",
-      "lineItems": [
-        {
-          "description": "Website maintenance - March",
-          "quantity": 12,
-          "unitPrice": 45,
-          "amount": 540,
-          "_id": "69f8b951d783b886c78ad277"
-        }
-      ],
-      "subtotal": 1100,
-      "tax": 220,
-      "total": 1310,
-      "validationIssues": [
-        {
-          "field": "total",
-          "message": "Total calculation error. Subtotal (1100) + Tax (220) = 1320, which differs from Total (1310).",
-          "severity": "error",
-          "_id": "69f8b954d783b886c78ad285"
-        }
-      ],
-      "status": "needs_review",
-      "createdAt": "2026-05-04T15:20:25.538Z",
-      "updatedAt": "2026-05-04T15:20:52.401Z",
-      "__v": 2
-    }
-  ]
-}
-```
+Short notes live in [docs/adr](docs/adr):
 
-## Document Statuses
+- npm workspaces, not a second package manager
+- Zod as the shared contract
+- Provider interface, and model output is parsed before it is stored
+- BullMQ when Redis is set, in-memory otherwise; local disk or S3
+- Email, password, and an httpOnly JWT
+- Money compared at the currency's minor unit
 
-| Status         | Meaning                                              |
-| -------------- | ---------------------------------------------------- |
-| `uploaded`     | Document was uploaded                                |
-| `needs_review` | Validation issues were found                         |
-| `validated`    | Document passed validation or was manually confirmed |
-| `rejected`     | Document was manually rejected                       |
+## Run
 
-## API Endpoints
-
-| Method   | Endpoint                     | Description                       |
-| -------- | ---------------------------- | --------------------------------- |
-| `POST`   | `/api/documents/upload`      | Upload and process a document     |
-| `GET`    | `/api/documents`             | Get all processed documents       |
-| `PATCH`  | `/api/documents/:id`         | Update and re-validate a document |
-| `DELETE` | `/api/documents/:id`         | Delete a document                 |
-| `GET`    | `api/documents/:id/original` | Get original file info            |
-
-## Setup
-
-Copy `.env.example` to `.env` in the project root and set `MONGO_URI`. `GEMINI_API_KEY` is only required for PDF and image extraction. CSV and TXT files are parsed without it.
-
-```env
-PORT=3000
-MONGO_URI=your_mongodb_connection_string
-GEMINI_API_KEY=your_gemini_api_key
-CORS_ORIGINS=http://localhost:5173
-```
-
-Install dependencies:
+Node 22. Copy `.env.example` to `.env`. Set `MONGO_URI` and a `JWT_SECRET` of at least 16 characters. `GEMINI_API_KEY` is only needed for PDF and images.
 
 ```bash
 npm install
-```
-
-Run the API (port 3000) and the web app (port 5173). The web app proxies `/api` to the API.
-
-```bash
 npm run dev
 ```
 
-Checks:
+The UI is at http://localhost:5173 and the API at http://localhost:3000. Register, then upload a file from `fixtures/invoices`.
 
 ```bash
 npm run lint
 npm run typecheck
 npm test
-```
-
-Build the web app, then start the API. In production the API serves `apps/web/dist`.
-
-```bash
 npm run build
 npm start
 ```
 
-## Validation Approach
+Compose, when Docker is running:
 
-AI is used for extraction from PDFs and images. CSV and TXT files are parsed with deterministic logic.
+```bash
+docker compose up --build
+```
 
-Validation is handled by application code, not by AI. The validation engine checks:
+UI at http://localhost:8080. API health at http://localhost:3000/api/v1/health.
 
-- Missing required fields
-- Invalid dates
-- Incorrect subtotal, tax, and total values
-- Incorrect line item calculations
-- Duplicate document numbers
+## Evals
 
-## AI Tools Used
-
-Google Gemini is used to extract structured data from PDF and image documents. The extracted data is then normalized and validated by deterministic backend logic.
-ChatGPT basic mode was used during development for file-by-file logic review, implementation help, and iterative improvements. The project was reviewed in parts by uploading zipped versions of the app, checking the code, improving it, and then copying the changes back into the project.
+`npm run eval` runs the CSV and TXT providers on `fixtures/invoices` and compares each field with the sibling `.expected.json`. Line items are compared as a whole. The command prints a percentage per file and exits non-zero unless every deterministic fixture is exact. CI runs this. It does not call Gemini. A live model pass is intentionally out of CI.
 
 ## Tests
 
-The project includes basic tests for deterministic parts of the system, including parsing, normalization, required fields, totals, dates, and line item validation.
-Gemini API calls are not unit tested because they depend on an external service.
+Unit tests cover the rules, normalizer, parsers, queue idempotency, local storage, and CSV export. `apps/api/src/http/api.test.ts` boots the API against `mongodb-memory-server` and checks auth, processing, isolation, and reprocess.
 
-## Future Improvements
+GitHub Actions runs lint, typecheck, test, build, and eval.
 
-- Finalize a document once it is Validated, preventing future edits
-- Use OCR as the first extraction step for simpler PDFs and images, and fall back to AI only for messy or poorly structured documents. This would reduce token usage and lower processing costs.
-- Add authentication
-- Add API documentation
-- Add Docker setup
-- Add queue-based processing for large files
-- Improve OCR handling for messy scanned documents
-- Support multiple file uploads
+## API
+
+Versioned routes are under `/api/v1`. `/api/documents` and `/api/health` remain as aliases. OpenAPI: `GET /api/v1/openapi.json`.
+
+## Screenshots
+
+Real captures are not in the repo yet. The list of shots to take is in [docs/screenshots/README.md](docs/screenshots/README.md).
+
+## Roadmap
+
+- OAuth
+- Server-sent events instead of polling
+- OCR before the model for clean PDFs
+- Lock a validated document against later edits
+- Migrate documents that were stored before organisations existed
