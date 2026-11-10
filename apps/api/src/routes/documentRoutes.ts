@@ -72,6 +72,9 @@ router.patch("/:id", (req, res, next) => {
 router.delete("/:id", (req, res, next) => {
   void DocumentController.deleteDocument(req, res, next);
 });
+router.get("/:id/audit", (req, res, next) => {
+  void DocumentController.getAudit(req, res, next);
+});
 router.get("/:id/original", (req, res, next) => {
   void DocumentController.viewOriginal(req, res, next);
 });

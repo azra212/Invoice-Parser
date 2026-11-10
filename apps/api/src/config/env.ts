@@ -30,6 +30,10 @@ export const envSchema = z.object({
     .string("MONGO_URI is required")
     .trim()
     .min(1, "MONGO_URI is required"),
+  JWT_SECRET: z
+    .string("JWT_SECRET is required")
+    .trim()
+    .min(16, "JWT_SECRET must be at least 16 characters"),
   GEMINI_API_KEY: optionalText.transform((value) =>
     value && value !== "MY_GEMINI_API_KEY" ? value : undefined,
   ),

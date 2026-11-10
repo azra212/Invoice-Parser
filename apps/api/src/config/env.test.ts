@@ -9,6 +9,7 @@ describe("parseEnv", () => {
   it("applies defaults for local development", () => {
     const env = parseEnv({
       MONGO_URI: "mongodb://127.0.0.1:27017/invoice-parser",
+      JWT_SECRET: "dev-only-change-me-please",
     });
 
     expect(env.PORT).toBe(3000);
@@ -21,6 +22,7 @@ describe("parseEnv", () => {
   it("treats the sample Gemini key as unset", () => {
     const env = parseEnv({
       MONGO_URI: "mongodb://127.0.0.1:27017/invoice-parser",
+      JWT_SECRET: "dev-only-change-me-please",
       GEMINI_API_KEY: "MY_GEMINI_API_KEY",
       PORT: "4000",
     });

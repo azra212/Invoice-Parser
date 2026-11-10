@@ -1,11 +1,12 @@
 import { Document } from "../../models/Document";
 import type { ValidationContext } from "./types";
 
-export function mongoDuplicateLookup(): NonNullable<
-  ValidationContext["findDuplicate"]
-> {
+export function mongoDuplicateLookup(
+  organizationId?: string,
+): NonNullable<ValidationContext["findDuplicate"]> {
   return async ({ supplierName, documentNumber, currentDocumentId }) => {
     const query: Record<string, unknown> = { supplierName, documentNumber };
+    if (organizationId) query.organizationId = organizationId;
     if (currentDocumentId) {
       query._id = { $ne: currentDocumentId };
     }

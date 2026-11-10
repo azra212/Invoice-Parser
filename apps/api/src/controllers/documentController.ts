@@ -2,6 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import fs from "fs";
 import path from "path";
 import { Document } from "../models/Document";
+import { AppError } from "../errors/AppError";
+import { AuditEvent } from "../models/AuditEvent";
+import { recordAudit } from "../services/audit/recordAudit";
 import { getQueue, getStorage } from "../services/runtime";
 import type { ExtractedData } from "@invoice-parser/shared";
 import {
@@ -33,8 +36,10 @@ export class DocumentController {
         mimeType: req.file.mimetype,
       });
 
+      const user = currentUser(req);
       const created = await Document.create({
         fileName: req.file.originalname,
+        organizationId: user.organizationId,
         processingAttempt: 1,
         status: "uploaded",
         lineItems: [],
@@ -52,6 +57,12 @@ export class DocumentController {
         documentId: String(created._id),
         attempt: 1,
       });
+      await recordAudit({
+        organizationId: user.organizationId,
+        documentId: String(created._id),
+        userId: user.id,
+        action: "created",
+      });
 
       return res.status(202).json({
         success: true,
@@ -64,8 +75,11 @@ export class DocumentController {
 
   static async getDocuments(req: Request, res: Response, next: NextFunction) {
     try {
+      const user = currentUser(req);
       const query = parseInput(listDocumentsQuerySchema, req.query);
-      const filter: Record<string, unknown> = {};
+      const filter: Record<string, unknown> = {
+        organizationId: user.organizationId,
+      };
       if (query.status) filter.status = query.status;
       if (query.q) {
         const pattern = new RegExp(escapeRegex(query.q), "i");
@@ -79,6 +93,7 @@ export class DocumentController {
       const skip = (query.page - 1) * query.limit;
       const [documents, total] = await Promise.all([
         Document.find(filter)
+          .select("-rawExtraction")
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(query.limit),
@@ -97,11 +112,40 @@ export class DocumentController {
     }
   }
 
+  static async getAudit(req: Request, res: Response, next: NextFunction) {
+    try {
+      const user = currentUser(req);
+      const { id } = parseInput(documentIdSchema, req.params);
+      const document = await Document.findOne({
+        _id: id,
+        organizationId: user.organizationId,
+      }).select("_id");
+      if (!document) {
+        return res.status(404).json({
+          success: false,
+          code: "DOCUMENT_NOT_FOUND",
+          message: "Document not found.",
+        });
+      }
+      const events = await AuditEvent.find({
+        documentId: id,
+        organizationId: user.organizationId,
+      }).sort({ createdAt: -1 });
+      return res.json({ success: true, data: events });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async viewOriginal(req: Request, res: Response, next: NextFunction) {
     try {
+      const user = currentUser(req);
       const { id } = parseInput(documentIdSchema, req.params);
 
-      const document = await Document.findById(id);
+      const document = await Document.findOne({
+        _id: id,
+        organizationId: user.organizationId,
+      });
 
       const storageKey =
         document?.originalFile?.storageKey || document?.originalFile?.path;
@@ -142,10 +186,14 @@ export class DocumentController {
 
   static async updateDocument(req: Request, res: Response, next: NextFunction) {
     try {
+      const user = currentUser(req);
       const { id } = parseInput(documentIdSchema, req.params);
       const updates = parseInput(updateDocumentSchema, req.body);
 
-      const existingDoc = await Document.findById(id);
+      const existingDoc = await Document.findOne({
+        _id: id,
+        organizationId: user.organizationId,
+      });
 
       if (!existingDoc) {
         return res.status(404).json({
@@ -155,6 +203,7 @@ export class DocumentController {
         });
       }
 
+      const before = existingDoc.toObject();
       const dataForValidation = {
         ...existingDoc.toObject(),
         ...updates,
@@ -166,7 +215,7 @@ export class DocumentController {
         dataForValidation as ExtractedData,
         {
           currentDocumentId: id,
-          findDuplicate: mongoDuplicateLookup(),
+          findDuplicate: mongoDuplicateLookup(user.organizationId),
         },
       );
 
@@ -179,6 +228,19 @@ export class DocumentController {
       });
 
       const savedDoc = await existingDoc.save();
+      const action =
+        updates.status === "validated"
+          ? "confirmed"
+          : updates.status === "rejected"
+            ? "rejected"
+            : "edited";
+      await recordAudit({
+        organizationId: user.organizationId,
+        documentId: id,
+        userId: user.id,
+        action,
+        changes: fieldChanges(before, savedDoc.toObject()),
+      });
 
       return res.json({
         success: true,
@@ -195,9 +257,13 @@ export class DocumentController {
     next: NextFunction,
   ) {
     try {
+      const user = currentUser(req);
       const { id } = parseInput(documentIdSchema, req.params);
 
-      const document = await Document.findById(id);
+      const document = await Document.findOne({
+        _id: id,
+        organizationId: user.organizationId,
+      });
       if (!document) {
         return res.status(404).json({
           success: false,
@@ -215,6 +281,12 @@ export class DocumentController {
       document.status = "uploaded";
       await document.save();
       await getQueue().enqueue({ documentId: id, attempt });
+      await recordAudit({
+        organizationId: user.organizationId,
+        documentId: id,
+        userId: user.id,
+        action: "reprocessed",
+      });
 
       return res.status(202).json({ success: true, data: document });
     } catch (error) {
@@ -224,9 +296,13 @@ export class DocumentController {
 
   static async deleteDocument(req: Request, res: Response, next: NextFunction) {
     try {
+      const user = currentUser(req);
       const { id } = parseInput(documentIdSchema, req.params);
 
-      const deletedDoc = await Document.findByIdAndDelete(id);
+      const deletedDoc = await Document.findOneAndDelete({
+        _id: id,
+        organizationId: user.organizationId,
+      });
 
       if (!deletedDoc) {
         return res.status(404).json({
@@ -246,6 +322,13 @@ export class DocumentController {
         }
       }
 
+      await recordAudit({
+        organizationId: user.organizationId,
+        documentId: id,
+        userId: user.id,
+        action: "deleted",
+      });
+
       return res.json({
         success: true,
         data: deletedDoc,
@@ -254,6 +337,38 @@ export class DocumentController {
       next(error);
     }
   }
+}
+
+const TRACKED_FIELDS = [
+  "documentType",
+  "supplierName",
+  "documentNumber",
+  "issueDate",
+  "dueDate",
+  "currency",
+  "subtotal",
+  "tax",
+  "total",
+] as const;
+
+function currentUser(req: Request) {
+  if (!req.user) {
+    throw new AppError("Sign in required.", 401, "UNAUTHENTICATED");
+  }
+  return req.user;
+}
+
+function fieldChanges(
+  before: Record<string, unknown>,
+  after: Record<string, unknown>,
+) {
+  const changes: Record<string, { from: unknown; to: unknown }> = {};
+  for (const field of TRACKED_FIELDS) {
+    if (JSON.stringify(before[field]) !== JSON.stringify(after[field])) {
+      changes[field] = { from: before[field], to: after[field] };
+    }
+  }
+  return changes;
 }
 
 function escapeRegex(value: string) {
