@@ -13,6 +13,7 @@ import type { LineItem, ProcessedDocument } from "@invoice-parser/shared";
 
 import { formatDateTime, formatStatus } from "../../utils/documentFormatters";
 
+import { DocumentPreview } from "./DocumentPreview";
 import { ValidationIssuesBox } from "./ValidationIssuesBox";
 import { LineItemsEditor } from "./LineItemsEditor";
 import { TotalsEditor } from "./TotalsEditor";
@@ -196,148 +197,196 @@ export function DocumentReviewModal({
     }
   };
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const typing =
+        target?.tagName === "INPUT" ||
+        target?.tagName === "TEXTAREA" ||
+        target?.tagName === "SELECT";
+      if (event.key === "Escape") {
+        onClose();
+        return;
+      }
+      if (typing) return;
+      if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        void saveCorrections();
+      }
+      if (event.key.toLowerCase() === "c") {
+        void updateDoc(requireDocumentId(), { status: "validated" });
+      }
+      if (event.key.toLowerCase() === "r") {
+        void updateDoc(requireDocumentId(), { status: "rejected" });
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
   return (
     <Box
       position="fixed"
-      right={0}
-      top={0}
-      h="100vh"
-      w={{ base: "100%", md: "720px" }}
-      bg="white"
-      shadow="2xl"
+      inset={0}
+      bg="blackAlpha.600"
       zIndex={100}
-      borderLeft="1px solid"
-      borderColor="gray.100"
-      p={8}
       overflowY="auto"
+      p={{ base: 0, md: 6 }}
     >
-      <VStack align="stretch" gap={6}>
-        <HStack justify="space-between" align="center">
-          <Heading size="md">Review Document</Heading>
-
-          <HStack gap={2}>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={!selectedDoc.originalFile}
-              onClick={() => {
-                window.open(
-                  `/api/v1/documents/${requireDocumentId()}/original`,
-                  "_blank",
-                );
-              }}
-            >
-              <ExternalLink size={16} />
-              Original
-            </Button>
-
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              Close
-            </Button>
-          </HStack>
-        </HStack>
-
-        {selectedDoc.validationIssues?.length > 0 && (
-          <ValidationIssuesBox issues={selectedDoc.validationIssues} />
-        )}
-
-        {actionError && (
-          <Box
-            borderWidth="1px"
-            borderColor="red.200"
-            bg="red.50"
-            color="red.700"
-            px={4}
-            py={3}
-            borderRadius="md"
-          >
-            <Text fontSize="sm" fontWeight="medium">
-              {actionError}
-            </Text>
-          </Box>
-        )}
-        <VStack align="stretch" gap={4}>
-          <DocumentFieldsForm
-            values={{
-              documentType: editForm.documentType,
-              supplierName: editForm.supplierName,
-              documentNumber: editForm.documentNumber,
-              issueDate: editForm.issueDate,
-              dueDate: editForm.dueDate,
-              currency: editForm.currency,
-            }}
-            onFieldChange={updateMainField}
-          />
-
+      <Box
+        bg={{ base: "white", _dark: "gray.800" }}
+        borderRadius={{ base: 0, md: "xl" }}
+        minH="100%"
+        p={{ base: 4, md: 6 }}
+      >
+        <Box
+          display="grid"
+          gridTemplateColumns={{ base: "1fr", lg: "1fr 1fr" }}
+          gap={6}
+        >
           <Box>
-            <Text fontSize="xs" fontWeight="bold" color="gray.500">
-              VALIDATION STATUS
+            <Text fontSize="sm" fontWeight="bold" mb={2}>
+              Original
             </Text>
-            <VStack align="start" gap={1}>
-              <Badge colorPalette={getStatusColor(selectedDoc.status)}>
-                {formatStatus(selectedDoc.status)}
-              </Badge>
-              <Text fontSize="xs" color="gray.500">
-                {getIssueCount(selectedDoc)} issue
-                {getIssueCount(selectedDoc) === 1 ? "" : "s"}
-              </Text>
-            </VStack>
+            <DocumentPreview
+              documentId={requireDocumentId()}
+              mimeType={selectedDoc.originalFile?.mimeType}
+            />
           </Box>
-          <LineItemsEditor
-            lineItems={editForm.lineItems}
-            onChange={updateLineItem}
-            onAdd={addLineItem}
-            onRemove={removeLineItem}
-            toNullableNumber={toNullableNumber}
-          />
+          <VStack align="stretch" gap={6}>
+            <HStack justify="space-between" align="center">
+              <Heading size="md">Review Document</Heading>
 
-          <TotalsEditor
-            subtotal={editForm.subtotal}
-            tax={editForm.tax}
-            total={editForm.total}
-            onSubtotalChange={(value) => updateField("subtotal", value)}
-            onTaxChange={(value) => updateField("tax", value)}
-            onTotalChange={(value) => updateField("total", value)}
-            toNullableNumber={toNullableNumber}
-          />
+              <HStack gap={2}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={!selectedDoc.originalFile}
+                  onClick={() => {
+                    window.open(
+                      `/api/v1/documents/${requireDocumentId()}/original`,
+                      "_blank",
+                    );
+                  }}
+                >
+                  <ExternalLink size={16} />
+                  Original
+                </Button>
 
-          <Box bg="gray.50" p={4} borderRadius="md">
-            <VStack align="stretch" gap={2}>
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Created At
-                </Text>
-                <Text fontSize="sm">
-                  {formatDateTime(selectedDoc.createdAt)}
-                </Text>
+                <Button variant="ghost" size="sm" onClick={onClose}>
+                  Close
+                </Button>
               </HStack>
+            </HStack>
 
-              <HStack justify="space-between">
-                <Text fontSize="sm" color="gray.600">
-                  Updated At
+            {selectedDoc.validationIssues?.length > 0 && (
+              <ValidationIssuesBox issues={selectedDoc.validationIssues} />
+            )}
+
+            {actionError && (
+              <Box
+                borderWidth="1px"
+                borderColor="red.200"
+                bg="red.50"
+                color="red.700"
+                px={4}
+                py={3}
+                borderRadius="md"
+              >
+                <Text fontSize="sm" fontWeight="medium">
+                  {actionError}
                 </Text>
-                <Text fontSize="sm">
-                  {formatDateTime(selectedDoc.updatedAt)}
+              </Box>
+            )}
+            <VStack align="stretch" gap={4}>
+              <DocumentFieldsForm
+                values={{
+                  documentType: editForm.documentType,
+                  supplierName: editForm.supplierName,
+                  documentNumber: editForm.documentNumber,
+                  issueDate: editForm.issueDate,
+                  dueDate: editForm.dueDate,
+                  currency: editForm.currency,
+                }}
+                issues={selectedDoc.validationIssues}
+                confidence={selectedDoc.fieldConfidence}
+                onFieldChange={updateMainField}
+              />
+
+              <Box>
+                <Text fontSize="xs" fontWeight="bold" color="gray.500">
+                  VALIDATION STATUS
                 </Text>
-              </HStack>
+                <VStack align="start" gap={1}>
+                  <Badge colorPalette={getStatusColor(selectedDoc.status)}>
+                    {formatStatus(selectedDoc.status)}
+                  </Badge>
+                  <Text fontSize="xs" color="gray.500">
+                    {getIssueCount(selectedDoc)} issue
+                    {getIssueCount(selectedDoc) === 1 ? "" : "s"}
+                  </Text>
+                </VStack>
+              </Box>
+              <LineItemsEditor
+                lineItems={editForm.lineItems}
+                onChange={updateLineItem}
+                onAdd={addLineItem}
+                onRemove={removeLineItem}
+                toNullableNumber={toNullableNumber}
+              />
+
+              <TotalsEditor
+                subtotal={editForm.subtotal}
+                tax={editForm.tax}
+                total={editForm.total}
+                onSubtotalChange={(value) => updateField("subtotal", value)}
+                onTaxChange={(value) => updateField("tax", value)}
+                onTotalChange={(value) => updateField("total", value)}
+                toNullableNumber={toNullableNumber}
+              />
+
+              <Box bg="gray.50" p={4} borderRadius="md">
+                <VStack align="stretch" gap={2}>
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.600">
+                      Created At
+                    </Text>
+                    <Text fontSize="sm">
+                      {formatDateTime(selectedDoc.createdAt)}
+                    </Text>
+                  </HStack>
+
+                  <HStack justify="space-between">
+                    <Text fontSize="sm" color="gray.600">
+                      Updated At
+                    </Text>
+                    <Text fontSize="sm">
+                      {formatDateTime(selectedDoc.updatedAt)}
+                    </Text>
+                  </HStack>
+                </VStack>
+              </Box>
             </VStack>
-          </Box>
-        </VStack>
 
-        <ReviewActions
-          saving={saving}
-          onSave={saveCorrections}
-          onValidate={() =>
-            updateDoc(requireDocumentId(), { status: "validated" })
-          }
-          onReject={() =>
-            updateDoc(requireDocumentId(), { status: "rejected" })
-          }
-          onDelete={() => deleteDoc(requireDocumentId())}
-          onReprocess={() => reprocessDoc(requireDocumentId())}
-          hasUnsavedChanges={hasUnsavedChanges}
-        />
-      </VStack>
+            <Text fontSize="xs" color="gray.500">
+              Shortcuts when not typing: S save, C confirm, R reject, Esc close.
+            </Text>
+            <ReviewActions
+              saving={saving}
+              onSave={saveCorrections}
+              onValidate={() =>
+                updateDoc(requireDocumentId(), { status: "validated" })
+              }
+              onReject={() =>
+                updateDoc(requireDocumentId(), { status: "rejected" })
+              }
+              onDelete={() => deleteDoc(requireDocumentId())}
+              onReprocess={() => reprocessDoc(requireDocumentId())}
+              hasUnsavedChanges={hasUnsavedChanges}
+            />
+          </VStack>
+        </Box>
+      </Box>
     </Box>
   );
 }

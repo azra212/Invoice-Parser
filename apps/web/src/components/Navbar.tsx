@@ -4,17 +4,25 @@ import { ClipboardList } from "lucide-react";
 interface NavbarProps {
   onUploadClick: () => void;
   email?: string;
+  theme: "light" | "dark";
+  onToggleTheme: () => void;
   onLogout: () => void;
 }
 
-export function Navbar({ onUploadClick, email, onLogout }: NavbarProps) {
+export function Navbar({
+  onUploadClick,
+  email,
+  theme,
+  onToggleTheme,
+  onLogout,
+}: NavbarProps) {
   return (
     <Box
       px={8}
       py={4}
       borderBottom="1px solid"
       borderColor="gray.200"
-      bg="white"
+      bg={{ base: "white", _dark: "gray.800" }}
     >
       <HStack justify="space-between">
         <HStack gap={2}>
@@ -32,6 +40,9 @@ export function Navbar({ onUploadClick, email, onLogout }: NavbarProps) {
               {email}
             </Text>
           )}
+          <Button size="sm" variant="ghost" onClick={onToggleTheme}>
+            {theme === "dark" ? "Light" : "Dark"}
+          </Button>
           <Button size="sm" variant="ghost" onClick={onLogout}>
             Sign out
           </Button>

@@ -63,6 +63,9 @@ router.post("/upload", uploadLimiter, (req, res, next) => {
 router.get("/", (req, res, next) => {
   void DocumentController.getDocuments(req, res, next);
 });
+router.get("/export", (req, res, next) => {
+  void DocumentController.exportDocuments(req, res, next);
+});
 router.post("/:id/reprocess", (req, res, next) => {
   void DocumentController.reprocessDocument(req, res, next);
 });

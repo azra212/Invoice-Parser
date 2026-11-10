@@ -1,7 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
 import fs from "fs";
+import mongoose from "mongoose";
 import path from "path";
 import { Document } from "../models/Document";
+import { documentsToCsv } from "../services/export/documentsToCsv";
 import { AppError } from "../errors/AppError";
 import { AuditEvent } from "../models/AuditEvent";
 import { recordAudit } from "../services/audit/recordAudit";
@@ -91,13 +93,14 @@ export class DocumentController {
       }
 
       const skip = (query.page - 1) * query.limit;
-      const [documents, total] = await Promise.all([
+      const [documents, total, counts] = await Promise.all([
         Document.find(filter)
           .select("-rawExtraction")
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(query.limit),
         Document.countDocuments(filter),
+        statusCounts(user.organizationId),
       ]);
 
       return res.json({
@@ -106,7 +109,55 @@ export class DocumentController {
         page: query.page,
         limit: query.limit,
         total,
+        counts,
       });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async exportDocuments(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const user = currentUser(req);
+      const query = parseInput(listDocumentsQuerySchema, req.query);
+      const format = req.query.format === "csv" ? "csv" : "json";
+      const filter: Record<string, unknown> = {
+        organizationId: user.organizationId,
+        status: query.status ?? "validated",
+      };
+      if (query.q) {
+        const pattern = new RegExp(escapeRegex(query.q), "i");
+        filter.$or = [
+          { supplierName: pattern },
+          { documentNumber: pattern },
+          { fileName: pattern },
+        ];
+      }
+
+      const documents = await Document.find(filter)
+        .select("-rawExtraction")
+        .sort({ createdAt: -1 })
+        .limit(1000)
+        .lean();
+
+      if (format === "csv") {
+        res.setHeader("Content-Type", "text/csv; charset=utf-8");
+        res.setHeader(
+          "Content-Disposition",
+          'attachment; filename="documents.csv"',
+        );
+        return res.send(documentsToCsv(documents));
+      }
+
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="documents.json"',
+      );
+      return res.json({ success: true, data: documents });
     } catch (error) {
       next(error);
     }
@@ -369,6 +420,16 @@ function fieldChanges(
     }
   }
   return changes;
+}
+
+async function statusCounts(organizationId: string) {
+  const rows = await Document.aggregate<{ _id: string; count: number }>([
+    {
+      $match: { organizationId: new mongoose.Types.ObjectId(organizationId) },
+    },
+    { $group: { _id: "$status", count: { $sum: 1 } } },
+  ]);
+  return Object.fromEntries(rows.map((row) => [row._id, row.count]));
 }
 
 function escapeRegex(value: string) {

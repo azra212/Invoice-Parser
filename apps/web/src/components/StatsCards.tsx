@@ -7,22 +7,15 @@ import {
   Text,
   VStack,
 } from "@chakra-ui/react";
-import type { ProcessedDocument } from "@invoice-parser/shared";
-
 interface StatsCardsProps {
-  documents: ProcessedDocument[];
+  counts: Record<string, number>;
 }
 
-export function StatsCards({ documents }: StatsCardsProps) {
-  const needsReview = documents.filter(
-    (doc) => doc.status === "needs_review",
-  ).length;
-
-  const validated = documents.filter(
-    (doc) => doc.status === "validated",
-  ).length;
-
-  const rejected = documents.filter((doc) => doc.status === "rejected").length;
+export function StatsCards({ counts }: StatsCardsProps) {
+  const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+  const needsReview = counts.needs_review ?? 0;
+  const validated = counts.validated ?? 0;
+  const rejected = counts.rejected ?? 0;
 
   return (
     <SimpleGrid columns={{ base: 1, md: 4 }} gap={3} w="full">
@@ -42,7 +35,7 @@ export function StatsCards({ documents }: StatsCardsProps) {
           >
             Total Processed
           </Text>
-          <Heading size="xl">{documents.length}</Heading>
+          <Heading size="xl">{total}</Heading>
         </VStack>
       </Box>
 
