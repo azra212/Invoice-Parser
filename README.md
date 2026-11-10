@@ -6,6 +6,8 @@ A full-stack app for uploading, extracting, validating, reviewing, and managing 
 
 > Note: The app is hosted on Render’s free tier, so the first request may take a little while if the server has been idle.
 
+The code is an npm workspace (`apps/web`, `apps/api`, `packages/shared`). [PLAN.md](PLAN.md) describes the upgrade in progress.
+
 ## Tech Stack
 
 - React + Vite
@@ -128,12 +130,13 @@ Example extracted JSON object:
 
 ## Setup
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` in the project root and set `MONGO_URI`. `GEMINI_API_KEY` is only required for PDF and image extraction. CSV and TXT files are parsed without it.
 
 ```env
 PORT=3000
 MONGO_URI=your_mongodb_connection_string
 GEMINI_API_KEY=your_gemini_api_key
+CORS_ORIGINS=http://localhost:5173
 ```
 
 Install dependencies:
@@ -142,22 +145,25 @@ Install dependencies:
 npm install
 ```
 
-Run the app locally:
+Run the API (port 3000) and the web app (port 5173). The web app proxies `/api` to the API.
 
 ```bash
 npm run dev
 ```
 
-Run tests:
+Checks:
 
 ```bash
-npm run test
+npm run lint
+npm run typecheck
+npm test
 ```
 
-Build for production:
+Build the web app, then start the API. In production the API serves `apps/web/dist`.
 
 ```bash
 npm run build
+npm start
 ```
 
 ## Validation Approach
